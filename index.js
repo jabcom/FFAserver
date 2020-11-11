@@ -1,6 +1,8 @@
 var app = require('express')();
 var http = require('http').createServer(app);
 var io = require('socket.io')(http);
+var md5 = require('md5');
+var crypto = require("crypto");
 
 var gameState = {
   server: {
@@ -15,6 +17,7 @@ var gameState = {
     word: "",
     catagory: "",
     artist: "",
+    passcode: "123",
     players: [{
       name: "dave",
       state: 0,
@@ -33,23 +36,51 @@ app.get('/', (req, res) => {
   res.sendFile(__dirname + '/public/index.html');
 });
 
-function joinRoom(roomID, hash, playerName, socketID) {
-  //Update room player list
-  return true
+function log(message) {
+  console.log(new Date().toISOString() + " - " + message);
 }
 
-function playerKick(roomId, playerID) {
+function updateSalt() {
+  gameState.server.salt = crypto.randomBytes(16).toString('hex');
+  io.emit('saltUpdate', gameState.server.salt);
+  log("Salt updated: " + gameState.server.salt);
+}
 
+function joinRoom(roomID, hash, playerName, socketID) {
+  let returnData = {result: false, message: "joinRoom function Initial state not changed"};
+  let room = gameState.rooms.find(element => element.id === roomID);
+  if (md5(roomID+gameState.server.salt+playerName+room.passcode) == hash){
+    //check name
+  } else {
+    returnData = {result: false, message: "Wrong passcode"};
+  }
+  return returnData;
+}
+
+function newRoom(playerName, passcode, socketID) {
+
+}
+
+function playerKick(roomID, playerName) {
+  let roomIndex = gameState.rooms.findIndex(element => element.id === roomID);
+  let playerIndex = gameState.rooms[roomIndex].players.findIndex(element => element.name === playerName);
+  gameState.rooms[roomIndex].players.splice(playerIndex,1);
+  sendUpdateRoom(roomID);
 }
 
 function newConnection(socket) {
-  console.log("New Connection " + socket.id);
+  log("New Connection " + socket.id);
+}
+
+function sendMessageRoom(roomID, subject, message) {
+  io.in('Room'+roomID).emit(subject, message);
 }
 
 function sendUpdateRoom(roomID) {
   let room = gameState.rooms.find(element => element.id === roomID);
   for (let player of room.players) {
     io.to(player.socketID).emit('roomInfo', getRoomInfo(session.roomID, session.playerName));
+  }
 }
 
 function getRoomInfo(roomID, playerName) {
@@ -79,7 +110,7 @@ function getRoomInfo(roomID, playerName) {
 //Socket.io Server
 io.on('connection', socket => {
   //New Connection
-  console.log("New Connection " + socket.id);
+  log("New Connection " + socket.id);
   let session = {
     roomID: null,
     playerName: null
@@ -107,15 +138,22 @@ io.on('connection', socket => {
       socket.emit('joinRoom', {result: true});
       socket.join('Room'+roomID)
     } else {
-      socket.emit('joinRoom', {result: false, data: returnJoinRoom);
+      socket.emit('joinRoom', {result: false, data: returnJoinRoom});
     }
   });
 
   //Disconnected
   socket.on('disconnect', socket => {
-    console.log("Disconnected "+ socket);
-    if (info.room != null) {
-      playerKick(info.room, info.player);
+    if (session.room != null) {
+      log("Disconnected " + info.player + " from " + info.room + socket);
+      playerDelete(session.roomID, session.playerName);
+      session.roomID == null;
+      session.playerName == null;
+    } else {
+      log("Disconnected blank connection");
     }
   });
 });
+
+
+setInterval(updateSalt, 30*1000);
