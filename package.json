@@ -1,0 +1,15 @@
+{
+  "name": "ffaserver",
+  "version": "1.0.0",
+  "description": "Backend Server for the Fake Fake Artist App",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "Catapillocks",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.1",
+    "socket.io": "^3.0.1"
+  }
+}
