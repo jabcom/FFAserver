@@ -10,6 +10,7 @@ var gameState = {
     salt: "Salt",
     name: "localhost"
   },
+  categorys: ["Cat1", "Cat2", "Cat3"],
   rooms: [{
     id: "EKIW",
     host: "dave",
@@ -134,6 +135,9 @@ function getRoomInfo(roomID, playerName) {
     returnData.artist = false;
   } else {
     returnData.artist = true;
+  }
+  if (room.host == playerName) {
+    returnData.categorys = gameState.categorys;
   }
   for (let player of room.players) {
     returnData.players.push({
