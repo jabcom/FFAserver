@@ -3,7 +3,7 @@ var http = require('http').createServer(app);
 var io = require('socket.io')(http);
 var md5 = require('md5');
 var crypto = require("crypto");
-var roomCharList = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "M", "N" "P", "R", "S", "T", "W", "X", "Y", "Z";]
+var roomCharList = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "M", "N", "P", "R", "S", "T", "W", "X", "Y", "Z"];
 var playerStates = {
   lobby: 0, addingWords: 1, addedWords: 2
 };
@@ -19,7 +19,7 @@ var gameState = {
   categorys: ["Cat1", "Cat2", "Cat3"],
   settings: {
     minWords: 3
-  }
+  },
   rooms: [{
     id: "EKIW",
     host: "dave",
@@ -104,8 +104,8 @@ function newRoom(playerName, passcode, socketID) {
   return roomName;
 }
 
-updateReadyWordStatus(roomID, playerName) {
-  player = gameState.rooms[getRoomIndex(roomID)].players[getPlayerIndex(playerName)]
+function updateReadyWordStatus(roomID, playerName) {
+  player = gameState.rooms[getRoomIndex(roomID)].players[getPlayerIndex(playerName)];
   if (player.wordList.length < gameState.settings.minWords){
     gameState.rooms[getRoomIndex(roomID)].players[getPlayerIndex(playerName)].state = playerStates.addedWords;
   } else {
@@ -245,6 +245,22 @@ io.on('connection', socket => {
   socket.on('setWordList', (socket, data) => {
     if (session.roomID != null){
       if (gameState.rooms[roomIndex].state != roomStates.addingWords) {
+        gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(session.playerName)].wordList = data.list.slice(0, gameState.settings.minWords);
+        updateReadyWordStatus(roomID, playerName);
+        sendUpdateRoom(session.roomID);
+      } else {
+        socket.emit('showError', {message: "Room is not in state Adding Words"});
+      }
+    } else {
+      socket.emit('showError', {message: "Can't set word list. User is in a room"});
+    }
+  });
+
+  socket.on('startGame', () => {
+    if (session.roomID != null){
+      if (gameState.rooms[roomIndex].state != roomStates.addingWords) {
+        //chech is host
+        //check all players ready
         gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(session.playerName)].wordList = data.list.slice(0, gameState.settings.minWords);
         updateReadyWordStatus(roomID, playerName);
         sendUpdateRoom(session.roomID);
