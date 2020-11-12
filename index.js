@@ -304,11 +304,15 @@ io.on('connection', socket => {
   socket.on('changeHost', (socket, data) => {
     let newHost = data.host;
     if (session.roomID != null){
-      if (!gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === newHost)) {
-        socket.emit('showError', {message: "New host name does not exist"});
+      if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
+        if (!gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === newHost)) {
+          socket.emit('showError', {message: "New host name does not exist"});
+        } else {
+          gameState.rooms[getRoomIndex(session.roomID)].host = newHost;
+          sendUpdateRoom(session.roomID);
+        }
       } else {
-        gameState.rooms[getRoomIndex(session.roomID)].host = newHost;
-        sendUpdateRoom(session.roomID);
+        socket.emit('showError', {message: "User is not host"});
       }
     } else {
       socket.emit('showError', {message: "Can't change host User is in a room"});
