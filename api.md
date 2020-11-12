@@ -10,10 +10,8 @@ FFA communicates using socket.io. New connections will remain unassigned before 
 **Event:** `serverInfo`
 
 **Data:**
-```json
-{version: "0.0.1",
-salt: "ab78a7071eb525b1e762a65d5be83fcc",
-name: "TetServer"}
+```
+{version: "0.0.1", salt: "ab78a7071eb525b1e762a65d5be83fcc", name: "TestServer"}
 ```
 **Notes:**
 The Salt is important as this is used for hashing the join room request
@@ -23,22 +21,6 @@ The Salt is important as this is used for hashing the join room request
 # Client Emitters #
 
 
-## Create a new room
-
-**Event:** `newRoom`
-
-**Data:**
-```json
-{
-  playerName: "PlayerOne",
-  passcode: "lemein"
-}
-```
-**Requirements:** none
-
-**Result:** server will emit `roomInfo` back to client
-
-
 ## Get Server Info ##
 
 **Event:** `serverInfo`
@@ -46,6 +28,34 @@ The Salt is important as this is used for hashing the join room request
 **Data:** None
 
 **Requirements:** none
+
+**Result:** Return Data emitted to client `serverInfo`
+
+
+## Create a new room
+
+**Event:** `newRoom`
+
+**Data:**
+```
+{playerName: "PlayerOne", passcode: "lemein"}
+```
+**Requirements:** none
+
+**Result:** server will emit `roomInfo` back to client
+
+
+## Set Category ##
+
+**Event:** `setCategory`
+
+**Data:**
+```
+{category: "MyCategory"}
+```
+**Requirements:**
+* Be joined to a room
+* Be host of the room
 
 **Result:** Return Data emitted to client `serverInfo`
 

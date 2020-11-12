@@ -15,7 +15,7 @@ var gameState = {
     host: "dave",
     state: 0,
     word: "",
-    catagory: "",
+    category: "",
     artist: "",
     passcode: "123",
     players: [{
@@ -79,7 +79,7 @@ function newRoom(playerName, passcode, socketID) {
     id: roomName,
     state: 0,
     word: "",
-    catagory: "",
+    category: "",
     artist: "",
     passcode: passcode,
     players: [{
@@ -94,10 +94,15 @@ function newRoom(playerName, passcode, socketID) {
   return roomName;
 }
 
+function getRoomIndex(roomID) {
+  return gameState.rooms.findIndex(element => element.id === roomID);
+}
+function getPlayerIndex(roomID, playerName) {
+  return gameState.rooms[getRoomIndex(roomID)].players.findIndex(element => element.id === roomID);
+}
+
 function playerKick(roomID, playerName) {
-  let roomIndex = gameState.rooms.findIndex(element => element.id === roomID);
-  let playerIndex = gameState.rooms[roomIndex].players.findIndex(element => element.name === playerName);
-  gameState.rooms[roomIndex].players.splice(playerIndex,1);
+  gameState.rooms[getRoomIndex(roomID)].players.splice(getPlayerIndex(roomID, playerName),1);
   sendUpdateRoom(roomID);
 }
 
@@ -121,7 +126,7 @@ function getRoomInfo(roomID, playerName) {
   returnData = {
     host: room.host,
     state: room.state,
-    catagory: room.catagory,
+    category: room.category,
     players: []
   }
   if (playerName != room.artist) {
@@ -142,6 +147,7 @@ function getRoomInfo(roomID, playerName) {
 
 //Socket.io Server
 io.on('connection', socket => {
+
   //New Connection
   log("New Connection " + socket.id);
   let session = {
@@ -175,13 +181,24 @@ io.on('connection', socket => {
     }
   });
 
-  //New Room
+  //NewRoom
   socket.on('newRoom', (socket, data) => {
     let playerName = data.playerName;
     let passcode = data.passcode;
     let roomID = newRoom(playerName, passcode, session.socketID);
     socket.join('Room'+roomID)
     sendUpdateRoom(roomID)
+  });
+
+  //setCategory
+  socket.on('setCategory', (socket, data) => {
+    let roomIndex = getRoomIndex(roomID);
+    if (gameState.rooms[roomIndex].host == session.playerName) {
+      gameState.rooms[getRoomIndex(session.roomID)].category = data.category;
+      sendUpdateRoom(roomID)
+    } else {
+      socket.emit('showError', "User is not host. Not allowed to change category");
+    }
   });
 
   //Disconnected
