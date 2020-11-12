@@ -197,7 +197,7 @@ io.on('connection', socket => {
       gameState.rooms[getRoomIndex(session.roomID)].category = data.category;
       sendUpdateRoom(roomID)
     } else {
-      socket.emit('showError', "User is not host. Not allowed to change category");
+      socket.emit('showError', {message: "User is not host. Not allowed to change category"});
     }
   });
 

@@ -17,6 +17,16 @@ FFA communicates using socket.io. New connections will remain unassigned before 
 The Salt is important as this is used for hashing the join room request
 
 
+## Show Error
+**Event:** `showError`
+
+**Data:**
+```
+{message: "Uh oh, this is an error"}
+```
+**Notes:**
+The message should be displayed to the user.
+
 
 # Client Emitters #
 
@@ -57,7 +67,7 @@ The Salt is important as this is used for hashing the join room request
 * Be joined to a room
 * Be host of the room
 
-**Result:** Return Data emitted to client `serverInfo`
+**Result:** If successful `serverInfo` will be emitted to all in room. If player is not host will send message to `showError`
 
 
 # Client Examples #
