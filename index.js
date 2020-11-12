@@ -146,7 +146,8 @@ io.on('connection', socket => {
   log("New Connection " + socket.id);
   let session = {
     roomID: null,
-    playerName: null
+    playerName: null,
+    socketID: socket.id
   };
 
   //ServerInfo
@@ -164,8 +165,7 @@ io.on('connection', socket => {
     let roomID = data.roomID;
     let playerName = data.playerName;
     let hash = data.hash;
-    let socketID = socket.id;
-    if (joinRoom(roomID, playerName, hash, socketID)) {
+    if (joinRoom(roomID, playerName, hash, session.socketID)) {
       session.roomID = returnJoinRoom.roomID;
       session.playerName = returnJoinRoom.playerName
       socket.emit('joinRoom', {result: true});
@@ -179,8 +179,7 @@ io.on('connection', socket => {
   socket.on('newRoom', (socket, data) => {
     let playerName = data.playerName;
     let passcode = data.passcode;
-    let socketID = socket.id;
-    let roomID = newRoom(playerName, passcode, socketID);
+    let roomID = newRoom(playerName, passcode, session.socketID);
     socket.join('Room'+roomID)
     sendUpdateRoom(roomID)
   });
@@ -188,12 +187,12 @@ io.on('connection', socket => {
   //Disconnected
   socket.on('disconnect', socket => {
     if (session.room != null) {
-      log("Disconnected " + info.player + " from " + info.room + socket);
+      log("Disconnected " + info.player + " from " + info.room + " " + session.socketID);
       playerDelete(session.roomID, session.playerName);
       session.roomID == null;
       session.playerName == null;
     } else {
-      log("Disconnected blank connection");
+      log("Disconnected blank connection " + session.socketID);
     }
   });
 });
