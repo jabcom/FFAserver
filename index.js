@@ -292,7 +292,22 @@ io.on('connection', socket => {
         sendUpdateRoom(session.roomID);
       }
     } else {
-      socket.emit('showError', {message: "Can't set word list. User is in a room"});
+      socket.emit('showError', {message: "Can't change name. User is in a room"});
+    }
+  });
+
+  //Change Host
+  socket.on('changeHost', (socket, data) => {
+    let newHost = data.host;
+    if (session.roomID != null){
+      if (!gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === newHost)) {
+        socket.emit('showError', {message: "New host name does not exist"});
+      } else {
+        gameState.rooms[getRoomIndex(session.roomID)].host = newHost;
+        sendUpdateRoom(session.roomID);
+      }
+    } else {
+      socket.emit('showError', {message: "Can't change host User is in a room"});
     }
   });
 
