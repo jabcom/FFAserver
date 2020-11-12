@@ -9,7 +9,7 @@ var playerStates = {
 };
 var roomStates = {
   lobby:0, addingWords: 1, playingGame: 2, artistGuessed: 3, wordGuessed: 4
-}
+};
 var gameState = {
   server: {
     version: "0.0.1",
@@ -36,7 +36,7 @@ var gameState = {
       socketID: ""
     }]
   }]
-}
+};
 
 //WebServer
 http.listen(3000, () => {
@@ -52,19 +52,8 @@ function log(message) {
 
 function updateSalt() {
   gameState.server.salt = crypto.randomBytes(16).toString('hex');
-  io.emit('saltUpdate', gameState.server.salt);
+  io.emit('saltUpdate', {salt: gameState.server.salt});
   log("Salt updated: " + gameState.server.salt);
-}
-
-function joinRoom(roomID, hash, playerName, socketID) {
-  let returnData = {result: false, message: "joinRoom function Initial state not changed"};
-  let room = gameState.rooms.find(element => element.id === roomID);
-  if (md5(roomID+gameState.server.salt+playerName+room.passcode) == hash){
-    //check name
-  } else {
-    returnData = {result: false, message: "Wrong passcode"};
-  }
-  return returnData;
 }
 
 function genRoomName() {
@@ -118,6 +107,10 @@ function getRoomIndex(roomID) {
 }
 function getPlayerIndex(roomID, playerName) {
   return gameState.rooms[getRoomIndex(roomID)].players.findIndex(element => element.id === roomID);
+}
+
+function sendPlayerError(roomID, playerName, message) {
+  io.to(gameState.rooms[getRoomIndex(roomID)].players[playerName].socketID).emit('showError', {message: message});
 }
 
 function playerKick(roomID, playerName) {
@@ -208,13 +201,32 @@ io.on('connection', socket => {
     let roomID = data.roomID;
     let playerName = data.playerName;
     let hash = data.hash;
-    if (joinRoom(roomID, playerName, hash, session.socketID)) {
-      session.roomID = returnJoinRoom.roomID;
-      session.playerName = returnJoinRoom.playerName
-      socket.emit('joinRoom', {result: true});
-      socket.join('Room'+roomID)
+    if (gameState.rooms.some(room => room.ID === roomID)) {
+      let room = gameState.rooms.find(element => element.id === roomID);
+      if (room.state != roomStates.lobby) {
+        if (md5(roomID+gameState.server.salt+playerName+room.passcode) == hash){
+          if (room.players.some(player => player.name === playerName)) {
+            gameState.rooms[getRoomIndex(roomID)].players[getPlayerIndex(playerName)].push({
+              name: playerName,
+              state: 0,
+              wordList: [],
+              score: 0,
+              socketID: socket.ID
+            });
+            session.roomID = roomID;
+            session.playerName = playerName;
+            sendUpdateRoom(roomID);
+          } else {
+            socket.emit('showError', {message: "Name already taken"});
+          }
+        } else {
+          socket.emit('showError', {message: "Wrong Passcode"});
+        }
+      } else {
+        socket.emit('showError', {message: "Room is not in lobby"});
+      }
     } else {
-      socket.emit('joinRoom', {result: false, data: returnJoinRoom});
+      socket.emit('showError', {message: "Room does not exist"});
     }
   });
 
