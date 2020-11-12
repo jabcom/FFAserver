@@ -4,6 +4,9 @@ var io = require('socket.io')(http);
 var md5 = require('md5');
 var crypto = require("crypto");
 var roomCharList = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "M", "N" "P", "R", "S", "T", "W", "X", "Y", "Z";]
+var playerStates = {
+  lobby: 0, addingWords: 1, addedWords: 2
+};
 var gameState = {
   server: {
     version: "0.0.1",
@@ -11,6 +14,9 @@ var gameState = {
     name: "localhost"
   },
   categorys: ["Cat1", "Cat2", "Cat3"],
+  settings: {
+    minWords: 3
+  }
   rooms: [{
     id: "EKIW",
     host: "dave",
@@ -95,6 +101,15 @@ function newRoom(playerName, passcode, socketID) {
   return roomName;
 }
 
+updateReadyWordStatus(roomID, playerName) {
+  player = gameState.rooms[getRoomIndex(roomID)].players[getPlayerIndex(playerName)]
+  if (player.wordList.length < gameState.settings.minWords){
+    gameState.rooms[getRoomIndex(roomID)].players[getPlayerIndex(playerName)].state = playerStates.addedWords;
+  } else {
+    gameState.rooms[getRoomIndex(roomID)].players[getPlayerIndex(playerName)].state = playerStates.addingWords;
+  }
+}
+
 function getRoomIndex(roomID) {
   return gameState.rooms.findIndex(element => element.id === roomID);
 }
@@ -103,8 +118,14 @@ function getPlayerIndex(roomID, playerName) {
 }
 
 function playerKick(roomID, playerName) {
+  //Remove player from room
   gameState.rooms[getRoomIndex(roomID)].players.splice(getPlayerIndex(roomID, playerName),1);
-  sendUpdateRoom(roomID);
+  //If room is empty delete room
+  if (gameState.rooms[getRoomIndex(roomID)].players.length == 0) {
+    gameState.rooms.splice(getRoomIndex(roomID), 1);
+  } else {
+    sendUpdateRoom(roomID);
+  }
 }
 
 function newConnection(socket) {
@@ -204,10 +225,10 @@ io.on('connection', socket => {
 
   //setCategory
   socket.on('setCategory', (socket, data) => {
-    let roomIndex = getRoomIndex(roomID);
+    let roomIndex = getRoomIndex(session.roomID);
     if (gameState.rooms[roomIndex].host == session.playerName) {
       gameState.rooms[getRoomIndex(session.roomID)].category = data.category;
-      sendUpdateRoom(roomID)
+      sendUpdateRoom(session.roomID)
     } else {
       socket.emit('showError', {message: "User is not host. Not allowed to change category"});
     }
@@ -215,7 +236,9 @@ io.on('connection', socket => {
 
   socket.on('setWordlist', (socket, data) => {
     if (session.roomID != null){
-      socket.emit('roomInfo', getRoomInfo(session.roomID, session.playerName));
+      gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(session.playerName)].wordList = data.slice(0, gameState.settings.minWords);
+      updateReadyWordStatus(roomID, playerName);
+      sendUpdateRoom(session.roomID);
     } else {
       socket.emit('showError', {message: "Can't set word list. User is in a room"});
     }
