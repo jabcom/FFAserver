@@ -254,6 +254,7 @@ io.on('connection', socket => {
     }
   });
 
+  //Set WordList
   socket.on('setWordList', (socket, data) => {
     if (session.roomID != null){
       if (gameState.rooms[roomIndex].state != roomStates.addingWords) {
@@ -268,19 +269,26 @@ io.on('connection', socket => {
     }
   });
 
+  //Start Game
   socket.on('startGame', () => {
     if (session.roomID != null){
-      if (gameState.rooms[roomIndex].state != roomStates.addingWords) {
-        //chech is host
-        //check all players ready
-        gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(session.playerName)].wordList = data.list.slice(0, gameState.settings.minWords);
-        updateReadyWordStatus(roomID, playerName);
-        sendUpdateRoom(session.roomID);
+      let room = gameState.rooms[getRoomIndex(session.roomID)];
+      if (room.state != roomStates.addingWords) {
+        if (room.host != session.playerName) {
+          if (room.players.some(player => player.status === playerStates.addedWords)) {
+            gameState.rooms[getRoomIndex(session.roomID)].status = roomStates.playingGame;
+            sendUpdateRoom(session.roomID);
+          } else {
+            socket.emit('showError', {message: "Not all players ready"});
+          }
+        } else {
+          socket.emit('showError', {message: "User is not host"});
+        }
       } else {
         socket.emit('showError', {message: "Room is not in state Adding Words"});
       }
     } else {
-      socket.emit('showError', {message: "Can't set word list. User is in a room"});
+      socket.emit('showError', {message: "Can't set word list. User is not in a room"});
     }
   });
 

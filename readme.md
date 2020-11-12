@@ -3,10 +3,10 @@
 # Backround #
 FFA communicates using socket.io. New connections will remain unassigned before joining a game, at which point the socket saves the room and player IDs and joins the appropriate socket.io "room"
 
-# Client Listeners #
+## Client Listeners ##
 
 
-## Server Info
+### Server Info ###
 **Event:** `serverInfo`
 
 **Data:**
@@ -17,7 +17,7 @@ FFA communicates using socket.io. New connections will remain unassigned before 
 The Salt is important as this is used for hashing the join room request
 
 
-## Show Error
+### Show Error ###
 **Event:** `showError`
 
 **Data:**
@@ -28,10 +28,10 @@ The Salt is important as this is used for hashing the join room request
 The message should be displayed to the user.
 
 
-# Client Emitters #
+## Client Emitters ##
 
 
-## Get Server Info ##
+### Get Server Info ###
 
 **Event:** `serverInfo`
 
@@ -42,7 +42,7 @@ The message should be displayed to the user.
 **Result:** Return Data emitted to client `serverInfo`
 
 
-## Create a new room
+### Create a new room ###
 
 **Event:** `newRoom`
 
@@ -55,7 +55,7 @@ The message should be displayed to the user.
 **Result:** server will emit `roomInfo` back to client
 
 
-## Set Category ##
+### Set Category ###
 
 **Event:** `setCategory`
 
@@ -71,7 +71,7 @@ The message should be displayed to the user.
 **Result:** If successful `serverInfo` will be emitted to all in room. If player is not host will send message to `showError`
 
 
-## Add Word List ##
+### Add Word List ###
 
 **Event:** `setWordList`
 
@@ -82,6 +82,22 @@ The message should be displayed to the user.
 **Requirements:**
 * Be joined to a room
 * Room is in state "addingWords"
+
+**Result:** `roomInfo` will be emitted back to client, with players word list
+
+
+### StartGame ###
+
+**Event:** `startGame`
+
+**Data:**
+
+None
+**Requirements:**
+* Be joined to a room
+* Player is host
+* Room is in state "addingWords"
+* All Players have entered min number of words
 
 **Result:** `roomInfo` will be emitted back to client, with players word list
 
