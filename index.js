@@ -28,7 +28,7 @@ var gameState = {
     category: "",
     artist: "",
     passcode: "123",
-    lastWinner: ""
+    lastWinner: "",
     players: [{
       name: "dave",
       state: 0,
@@ -94,11 +94,16 @@ function createRoom(playerName, passcode, socketID) {
 }
 
 function updateReadyWordStatus(roomID, playerName) {
+  //Set player
   player = gameState.rooms[getRoomIndex(roomID)].players[getPlayerIndex(playerName)];
   if (player.wordList.length < gameState.settings.minWords){
     gameState.rooms[getRoomIndex(roomID)].players[getPlayerIndex(playerName)].state = playerStates.addedWords;
   } else {
     gameState.rooms[getRoomIndex(roomID)].players[getPlayerIndex(playerName)].state = playerStates.addingWords;
+  }
+  //Set Server
+  if (!gameState.rooms[getRoomIndex(roomID)].players.some(player => player.status === playerStates.addingWords)) {
+    gameState.rooms[getRoomIndex(roomID)].state = roomStates.playingGame;
   }
 }
 
@@ -262,29 +267,6 @@ io.on('connection', socket => {
       }
     } else {
       socket.emit('showError', {message: "Can't set word list. User is in a room"});
-    }
-  });
-
-  //Start Game
-  socket.on('startGame', () => {
-    if (session.roomID != null){
-      let room = gameState.rooms[getRoomIndex(session.roomID)];
-      if (room.state != roomStates.addingWords) {
-        if (room.host != session.playerName) {
-          if (room.players.some(player => player.status === playerStates.addedWords)) {
-            gameState.rooms[getRoomIndex(session.roomID)].status = roomStates.playingGame;
-            sendUpdateRoom(session.roomID);
-          } else {
-            socket.emit('showError', {message: "Not all players ready"});
-          }
-        } else {
-          socket.emit('showError', {message: "User is not host"});
-        }
-      } else {
-        socket.emit('showError', {message: "Room is not in state Adding Words"});
-      }
-    } else {
-      socket.emit('showError', {message: "Can't set word list. User is not in a room"});
     }
   });
 
