@@ -273,6 +273,29 @@ io.on('connection', socket => {
     }
   });
 
+  //Change Name
+  socket.on('changeName', (socket, data) => {
+    let newName = data.name;
+    if (session.roomID != null){
+      if (gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === newName)) {
+        socket.emit('showError', {message: "Name already in use"});
+      } else {
+        gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(session.playerName)].name = newName
+        let oldName = session.playerName;
+        session.playerName = newName;
+        if (gameState.rooms[getRoomIndex(session.roomID)].host == oldName) {
+          gameState.rooms[getRoomIndex(session.roomID)].host = newName
+        }
+        if (gameState.rooms[getRoomIndex(session.roomID)].lastWinner == oldName) {
+          gameState.rooms[getRoomIndex(session.roomID)].lastWinner = newName
+        }
+        sendUpdateRoom(session.roomID);
+      }
+    } else {
+      socket.emit('showError', {message: "Can't set word list. User is in a room"});
+    }
+  });
+
   //Disconnected
   socket.on('disconnect', socket => {
     if (session.room != null) {
