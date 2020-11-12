@@ -190,6 +190,8 @@ io.on('connection', socket => {
 
   //ServerInfo
   socket.on('serverInfo', socket => {
+    let serverInfo = gameState.server;
+    serverInfo.minWords = gameState.settings.minWords;
     socket.emit('serverInfo', gameState.server);
   });
 
