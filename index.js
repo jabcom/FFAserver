@@ -28,6 +28,7 @@ var gameState = {
     category: "",
     artist: "",
     passcode: "123",
+    lastWinner: ""
     players: [{
       name: "dave",
       state: 0,
@@ -64,7 +65,7 @@ function genRoomName() {
   return returnName
 }
 
-function newRoom(playerName, passcode, socketID) {
+function createRoom(playerName, passcode, socketID) {
   //Create unused room name
   let roomName = ""
   let roomNameInvalid = true;
@@ -80,7 +81,6 @@ function newRoom(playerName, passcode, socketID) {
     word: "",
     category: "",
     artist: "",
-    passcode: passcode,
     players: [{
       name: playerName,
       state: 0,
@@ -204,23 +204,19 @@ io.on('connection', socket => {
     if (gameState.rooms.some(room => room.ID === roomID)) {
       let room = gameState.rooms.find(element => element.id === roomID);
       if (room.state != roomStates.lobby) {
-        if (md5(roomID+gameState.server.salt+playerName+room.passcode) == hash){
-          if (room.players.some(player => player.name === playerName)) {
-            gameState.rooms[getRoomIndex(roomID)].players[getPlayerIndex(playerName)].push({
-              name: playerName,
-              state: 0,
-              wordList: [],
-              score: 0,
-              socketID: socket.ID
-            });
-            session.roomID = roomID;
-            session.playerName = playerName;
-            sendUpdateRoom(roomID);
-          } else {
-            socket.emit('showError', {message: "Name already taken"});
-          }
+        if (room.players.some(player => player.name === playerName)) {
+          gameState.rooms[getRoomIndex(roomID)].players[getPlayerIndex(playerName)].push({
+            name: playerName,
+            state: 0,
+            wordList: [],
+            score: 0,
+            socketID: socket.ID
+          });
+          session.roomID = roomID;
+          session.playerName = playerName;
+          sendUpdateRoom(roomID);
         } else {
-          socket.emit('showError', {message: "Wrong Passcode"});
+          socket.emit('showError', {message: "Name already taken"});
         }
       } else {
         socket.emit('showError', {message: "Room is not in lobby"});
@@ -231,10 +227,10 @@ io.on('connection', socket => {
   });
 
   //NewRoom
-  socket.on('newRoom', (socket, data) => {
+  socket.on('createRoom', (socket, data) => {
     let playerName = data.playerName;
     let passcode = data.passcode;
-    let roomID = newRoom(playerName, passcode, session.socketID);
+    let roomID = createRoom(playerName, passcode, session.socketID);
     socket.join('Room'+roomID)
     sendUpdateRoom(roomID)
   });
