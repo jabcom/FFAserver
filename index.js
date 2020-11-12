@@ -7,6 +7,9 @@ var roomCharList = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "M", "N" "
 var playerStates = {
   lobby: 0, addingWords: 1, addedWords: 2
 };
+var roomStates = {
+  lobby:0, addingWords: 1, playingGame: 2, artistGuessed: 3, wordGuessed: 4
+}
 var gameState = {
   server: {
     version: "0.0.1",
@@ -227,18 +230,26 @@ io.on('connection', socket => {
   socket.on('setCategory', (socket, data) => {
     let roomIndex = getRoomIndex(session.roomID);
     if (gameState.rooms[roomIndex].host == session.playerName) {
-      gameState.rooms[getRoomIndex(session.roomID)].category = data.category;
-      sendUpdateRoom(session.roomID)
+      if (gameState.rooms[roomIndex].state != roomStates.lobby) {
+        gameState.rooms[getRoomIndex(session.roomID)].category = data.category;
+        sendUpdateRoom(session.roomID);
+      } else {
+        socket.emit('showError', {message: "Room is not in state lobby"});
+      }
     } else {
       socket.emit('showError', {message: "User is not host. Not allowed to change category"});
     }
   });
 
-  socket.on('setWordlist', (socket, data) => {
+  socket.on('setWordList', (socket, data) => {
     if (session.roomID != null){
-      gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(session.playerName)].wordList = data.slice(0, gameState.settings.minWords);
-      updateReadyWordStatus(roomID, playerName);
-      sendUpdateRoom(session.roomID);
+      if (gameState.rooms[roomIndex].state != roomStates.addingWords) {
+        gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(session.playerName)].wordList = data.list.slice(0, gameState.settings.minWords);
+        updateReadyWordStatus(roomID, playerName);
+        sendUpdateRoom(session.roomID);
+      } else {
+        socket.emit('showError', {message: "Room is not in state Adding Words"});
+      }
     } else {
       socket.emit('showError', {message: "Can't set word list. User is in a room"});
     }

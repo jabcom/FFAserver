@@ -66,8 +66,24 @@ The message should be displayed to the user.
 **Requirements:**
 * Be joined to a room
 * Be host of the room
+* Room is in state "lobby"
 
 **Result:** If successful `serverInfo` will be emitted to all in room. If player is not host will send message to `showError`
+
+
+## Add Word List ##
+
+**Event:** `setWordList`
+
+**Data:**
+```
+{list: ["word1", "word2", "word3"]}
+```
+**Requirements:**
+* Be joined to a room
+* Room is in state "addingWords"
+
+**Result:** `roomInfo` will be emitted back to client, with players word list
 
 
 # Client Examples #
