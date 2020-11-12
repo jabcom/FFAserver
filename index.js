@@ -118,13 +118,17 @@ function sendPlayerError(roomID, playerName, message) {
   io.to(gameState.rooms[getRoomIndex(roomID)].players[playerName].socketID).emit('showError', {message: message});
 }
 
-function playerKick(roomID, playerName) {
+function playerRemove(roomID, playerName) {
   //Remove player from room
   gameState.rooms[getRoomIndex(roomID)].players.splice(getPlayerIndex(roomID, playerName),1);
   //If room is empty delete room
   if (gameState.rooms[getRoomIndex(roomID)].players.length == 0) {
     gameState.rooms.splice(getRoomIndex(roomID), 1);
   } else {
+    if (gameState.rooms[getRoomIndex(roomID)].host == playerName) {
+      //If player was host, set new host
+      gameState.rooms[getRoomIndex(roomID)].host = gameState.rooms[getRoomIndex(roomID)].players[0].name;
+    }
     sendUpdateRoom(roomID);
   }
 }
@@ -310,6 +314,8 @@ io.on('connection', socket => {
       socket.emit('showError', {message: "Can't change host User is in a room"});
     }
   });
+
+
 
   //Disconnected
   socket.on('disconnect', socket => {
