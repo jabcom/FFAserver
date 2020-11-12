@@ -5,26 +5,26 @@ FFA communicates using socket.io. New connections will remain unassigned before 
 
 # Client Listeners #
 ## Server Info
-Event `serverInfo`
+**Event:** `serverInfo`
 
-Data:
+**Data:**
 ```json
 {version: "0.0.1",
 salt: "ab78a7071eb525b1e762a65d5be83fcc",
 name: "TetServer"}
 ```
-Notes:
+**Notes:**
 The Salt is important as this is used for hashing the join room request
 
 # Client Emitters #
 ## Get Server info
-Event: `serverInfo`
+**Event:** `serverInfo`
 
-Data: None
+**Data:** None
 
-Requirements: none
+**Requirements:** none
 
-Result: Data emitted to client `serverInfo`
+**Result:** Return Data emitted to client `serverInfo`
 # Client Examples #
 
 ## Creating a new room ##

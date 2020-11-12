@@ -3,7 +3,7 @@ var http = require('http').createServer(app);
 var io = require('socket.io')(http);
 var md5 = require('md5');
 var crypto = require("crypto");
-
+var roomCharList = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "M", "N" "P", "R", "S", "T", "W", "X", "Y", "Z";]
 var gameState = {
   server: {
     version: "0.0.1",
@@ -57,8 +57,41 @@ function joinRoom(roomID, hash, playerName, socketID) {
   return returnData;
 }
 
-function newRoom(playerName, passcode, socketID) {
+function genRoomName() {
+  let returnName = "";
+  for (let i = 0; i < 4; i++) {
+    name += roomCharList[Math.floor(Math.Random() * roomCharList.length)]
+  }
+  return returnName
+}
 
+function newRoom(playerName, passcode, socketID) {
+  //Create unused room name
+  let roomName = ""
+  let roomNameInvalid = true;
+  do {
+    roomName = genRoomName();
+    if (gameState.rooms.some(room => room.ID === roomName)) {
+      roomNameInvalid = false;
+    }
+  } while(roomNameInvalid)
+  roomData = {
+    id: roomName,
+    state: 0,
+    word: "",
+    catagory: "",
+    artist: "",
+    passcode: passcode,
+    players: [{
+      name: playerName,
+      state: 0,
+      words: [],
+      score: 0,
+      socketID: socketID
+    }],
+    host: playerName
+  }
+  return roomName;
 }
 
 function playerKick(roomID, playerName) {
@@ -140,6 +173,16 @@ io.on('connection', socket => {
     } else {
       socket.emit('joinRoom', {result: false, data: returnJoinRoom});
     }
+  });
+
+  //New Room
+  socket.on('newRoom', (socket, data) => {
+    let playerName = data.playerName;
+    let passcode = data.passcode;
+    let socketID = socket.id;
+    let roomID = newRoom(playerName, passcode, socketID);
+    socket.join('Room'+roomID)
+    sendUpdateRoom(roomID)
   });
 
   //Disconnected
