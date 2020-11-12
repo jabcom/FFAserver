@@ -167,7 +167,8 @@ function getRoomInfo(roomID, playerName) {
     playerData = {
       name: player.name,
       state: player.state,
-      score: player.score
+      score: player.score,
+      wordCount: player.wordList.length
     };
     if (player.name == playerName) {
       playerData.wordList = player.wordList;
