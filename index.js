@@ -321,9 +321,7 @@ io.on('connection', socket => {
   socket.on('disconnect', socket => {
     if (session.room != null) {
       log("Disconnected " + info.player + " from " + info.room + " " + session.socketID);
-      playerDelete(session.roomID, session.playerName);
-      session.roomID == null;
-      session.playerName == null;
+      playerRemove(session.roomID, session.playerName);
     } else {
       log("Disconnected blank connection " + session.socketID);
     }
