@@ -167,7 +167,11 @@ io.on('connection', socket => {
 
   //RoomInfo
   socket.on('roomInfo', socket => {
-    socket.emit('roomInfo', getRoomInfo(session.roomID, session.playerName));
+    if (session.roomID != null){
+      socket.emit('roomInfo', getRoomInfo(session.roomID, session.playerName));
+    } else {
+      socket.emit('showError', {message: "User is in a room"});
+    }
   });
 
   //JoinRoom
