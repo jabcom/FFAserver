@@ -319,7 +319,25 @@ io.on('connection', socket => {
     }
   });
 
-
+  //Change Scores
+  socket.on('changePlayerScore', (socket, data) => {
+    let player = data.player;
+    let score = data.score;
+    if (session.roomID != null){
+      if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
+        if (gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === player)) {
+          gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(player)].score = score;
+          sendUpdateRoom(session.roomID);
+        } else {
+          socket.emit('showError', {message: "Player does not exist"});
+        }
+      } else {
+        socket.emit('showError', {message: "User is not host"});
+      }
+    } else {
+      socket.emit('showError', {message: "Can't change host User is in a room"});
+    }
+  });
 
   //Disconnected
   socket.on('disconnect', socket => {
