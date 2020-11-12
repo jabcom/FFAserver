@@ -150,7 +150,8 @@ function getRoomInfo(roomID, playerName) {
     host: room.host,
     state: room.state,
     category: room.category,
-    players: []
+    players: [],
+    lastWinner: room.lastWinner
   }
   if (playerName != room.artist) {
     returnData.word = room.word;
