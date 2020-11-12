@@ -86,7 +86,7 @@ function newRoom(playerName, passcode, socketID) {
     players: [{
       name: playerName,
       state: 0,
-      words: [],
+      wordList: [],
       score: 0,
       socketID: socketID
     }],
@@ -140,11 +140,15 @@ function getRoomInfo(roomID, playerName) {
     returnData.categorys = gameState.categorys;
   }
   for (let player of room.players) {
-    returnData.players.push({
+    playerData = {
       name: player.name,
       state: player.state,
       score: player.score
-    });
+    };
+    if (player.name == playerName) {
+      playerData.wordList = player.wordList;
+    }
+    returnData.players.push(playerData);
   }
   return returnData;
 }
@@ -170,7 +174,7 @@ io.on('connection', socket => {
     if (session.roomID != null){
       socket.emit('roomInfo', getRoomInfo(session.roomID, session.playerName));
     } else {
-      socket.emit('showError', {message: "User is in a room"});
+      socket.emit('showError', {message: "Can't get room info. User is in a room"});
     }
   });
 
@@ -206,6 +210,14 @@ io.on('connection', socket => {
       sendUpdateRoom(roomID)
     } else {
       socket.emit('showError', {message: "User is not host. Not allowed to change category"});
+    }
+  });
+
+  socket.on('setWordlist', (socket, data) => {
+    if (session.roomID != null){
+      socket.emit('roomInfo', getRoomInfo(session.roomID, session.playerName));
+    } else {
+      socket.emit('showError', {message: "Can't set word list. User is in a room"});
     }
   });
 
