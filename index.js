@@ -138,7 +138,6 @@ function sendMessageRoom(roomID, subject, message) {
 }
 
 function sendUpdateRoom(roomID) {
-  log("Updating room " + roomID);
   let room = gameState.rooms.find(element => element.id === roomID);
   for (let player of room.players) {
     io.to(player.socketID).emit('roomInfo', getRoomInfo(roomID, player.name));
