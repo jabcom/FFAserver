@@ -515,8 +515,19 @@ io.on('connection', socket => {
       let roomIndex = getRoomIndex(session.roomID);
       if (gameState.rooms[roomIndex].host == session.playerName) {
         if (gameState.rooms[roomIndex].state == roomStates.lobby) {
-          gameState.rooms[roomIndex].state = 1;
-          sendUpdateRoom(session.roomID);
+          if (gameState.rooms[roomIndex].category != "") {
+            if (gameState.rooms[roomIndex].players.length > 1) {
+              gameState.rooms[roomIndex].state = roomStates.addingWords;
+              for (let i = 0; i < gameState.rooms[roomIndex].players.length; i++) {
+                gameState.rooms[roomIndex].players[i].state = playerStates.addingWords;
+              }
+              sendUpdateRoom(session.roomID);
+            } else {
+              socket.emit('showError', {message: "Need more players"});
+            }
+          } else {
+            socket.emit('showError', {message: "Category has not been set"});
+          }
         } else {
           socket.emit('showError', {message: "Room is not in state lobby"});
         }
@@ -530,4 +541,5 @@ io.on('connection', socket => {
       } catch{}
     }
   });
+
 });
