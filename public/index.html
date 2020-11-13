@@ -14,13 +14,35 @@
     </style>
   </head>
   <body>
-    <ul id="messages"></ul>
+    <div id="messages"></div>
     <form action="">
+      <input id="n" autocomplete="off" /><hr>
       <input id="m" autocomplete="off" /><button>Send</button>
     </form>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
     <script>
+    $(function () {
       var socket = io();
-    </script>
+      $('form').submit(function(e) {
+        e.preventDefault(); // prevents page reloading
+        socket.emit($('#n').val(), $('#m').val());
+        return false;
+        });
+
+        socket.on('showError', function(msg){
+          $('#messages').append($('<p>').text(JSON.stringify(msg)));
+        });
+        socket.on('serverInfo', function(msg){
+          $('#messages').append($('<p>').text(JSON.stringify(msg)));
+        });
+        socket.on('roomInfo', function(msg){
+          $('#messages').append($('<p>').text(JSON.stringify(msg)));
+        });
+        socket.on('saltUpdate', function(msg){
+          $('#messages').append($('<p>').text(JSON.stringify(msg)));
+        });
+      });
+      </script>
   </body>
 </html>
