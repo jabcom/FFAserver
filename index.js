@@ -165,7 +165,7 @@ function getRoomInfo(roomID, playerName) {
     category: room.category,
     players: [],
     lastArtist: room.lastArtist,
-    minWords: gameState.settings.minWords;
+    minWords: gameState.settings.minWords
   }
   if (playerName != room.artist) {
     returnData.word = room.word;
