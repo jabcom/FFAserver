@@ -28,6 +28,10 @@
         socket.emit($('#n').val(), $('#m').val());
         return false;
         });
+        //for (let i = 0; i < 104977; i++) {
+        //  socket.emit("createRoom", "{\"playerName\":\"Dave\"}");
+        //  console.log((i / 104977 * 100) + "%");
+        //}
 
         socket.on('showError', function(msg){
           $('#messages').prepend($('<code>').text(JSON.stringify(msg)));

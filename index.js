@@ -52,31 +52,39 @@ function createRoom(playerName, socketID) {
   //Create unused room name
   let roomName = ""
   let roomNameInvalid = true;
+  let i = 0;
+  let maxCount = Math.pow(roomCharList.length, 4);
   do {
     roomName = genRoomName();
     if (!gameState.rooms.some(room => room.id === roomName)) {
       roomNameInvalid = false;
     }
-  } while(roomNameInvalid)
-  roomData = {
-    id: roomName,
-    state: 0,
-    word: "",
-    category: "",
-    artist: "",
-    lastArtist: "",
-    host: playerName,
-    players: [{
-      name: playerName,
+    i += 1;
+  } while((roomNameInvalid) && (i < maxCount))
+  if (!roomNameInvalid) {
+    roomData = {
+      id: roomName,
       state: 0,
-      wordList: [],
-      score: 0,
-      socketID: socketID,
-      guessed: false
-    }]
+      word: "",
+      category: "",
+      artist: "",
+      lastArtist: "",
+      host: playerName,
+      players: [{
+        name: playerName,
+        state: 0,
+        wordList: [],
+        score: 0,
+        socketID: socketID,
+        guessed: false
+      }]
+    }
+    gameState.rooms.push(roomData);
+    return roomName;
+  } else {
+    log("ERROR: Room name list full!");
+    io.to(socketID).emit('showError', {message: "All rooms are taken. Please try again later"});
   }
-  gameState.rooms.push(roomData);
-  return roomName;
 }
 
 function updateReadyWordStatus(roomID, playerName) {
