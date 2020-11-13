@@ -194,44 +194,57 @@ io.on('connection', socket => {
   };
 
   //ServerInfo
-  socket.on('serverInfo', (data) => {
-    try {
+  socket.on('serverInfo', dataString => {
+    try{
+      let data = JSON.parse(dataString);
       log(socket.id);
       let serverInfo = gameState.server;
       serverInfo.minWords = gameState.settings.minWords;
       socket.emit('serverInfo', gameState.server);
     } catch(error) {
-      log("ERROR 011: " + error);
+      log("ERROR : 001" + JSON.stringify(error, ["message", "arguments", "type", "name"]));
+      try {
+        socket.emit('showError', {message: "ERROR 001: " + error.message});
+      } catch{}
     }
   });
 
   //Debug Gamestate
-  socket.on('gameState', (data) => {
-    try {
+  socket.on('gameState', dataString => {
+    try{
+      let data = JSON.parse(dataString);
       if (gameState.settings.debugMode){
         socket.emit('serverInfo', gameState);
       }
     } catch(error) {
-      log("ERROR 012: " + error);
+      log("ERROR 002: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
+      try {
+        socket.emit('showError', {message: "ERROR 002:" + error.message});
+      } catch{}
     }
   });
 
   //RoomInfo
-  socket.on('roomInfo', (data) => {
-    try {
+  socket.on('roomInfo', dataString => {
+    try{
+      let data = JSON.parse(dataString);
       if (session.roomID != null){
         socket.emit('roomInfo', getRoomInfo(session.roomID, session.playerName));
       } else {
         socket.emit('showError', {message: "Can't get room info. User is in a room"});
       }
     } catch(error) {
-      log("ERROR 002: " + error);
+      log("ERROR 003: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
+      try {
+        socket.emit('showError', {message: "ERROR 003:" + error.message});
+      } catch{}
     }
   });
 
   //JoinRoom
-  socket.on('joinRoom', (data) => {
-    try {
+  socket.on('joinRoom', dataString => {
+    try{
+      let data = JSON.parse(dataString);
       let roomID = data.roomID;
       let playerName = data.playerName;
       if (gameState.rooms.some(room => room.ID === roomID)) {
@@ -258,7 +271,10 @@ io.on('connection', socket => {
         socket.emit('showError', {message: "Room does not exist"});
       }
     } catch(error) {
-      log("ERROR 003: " + error);
+      log("ERROR 004: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
+      try {
+        socket.emit('showError', {message: "ERROR 004: " + error.message});
+      } catch{}
     }
   });
 
@@ -272,13 +288,17 @@ io.on('connection', socket => {
       socket.join('Room'+roomID)
       sendUpdateRoom(roomID);
     } catch(error) {
-      log("ERROR 001: " + error);
+      log("ERROR 005: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
+      try {
+        socket.emit('showError', {message: "ERROR 005: " + error.message});
+      } catch{}
     }
   });
 
   //setCategory
-  socket.on('setCategory', (data) => {
-    try {
+  socket.on('setCategory', dataString => {
+    try{
+      let data = JSON.parse(dataString);
       let roomIndex = getRoomIndex(session.roomID);
       if (gameState.rooms[roomIndex].host == session.playerName) {
         if (gameState.rooms[roomIndex].state != roomStates.lobby) {
@@ -291,13 +311,17 @@ io.on('connection', socket => {
         socket.emit('showError', {message: "User is not host. Not allowed to change category"});
       }
     } catch(error) {
-      log("ERROR 004: " + error);
+      log("ERROR 006: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
+      try {
+        socket.emit('showError', {message: "ERROR 006: " + error.message});
+      } catch{}
     }
   });
 
   //Set WordList
-  socket.on('setWordList', (data) => {
-    try {
+  socket.on('setWordList', dataString => {
+    try{
+      let data = JSON.parse(dataString);
       if (session.roomID != null){
         if (gameState.rooms[roomIndex].state != roomStates.addingWords) {
           gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(session.playerName)].wordList = data.list.slice(0, gameState.settings.minWords);
@@ -310,13 +334,17 @@ io.on('connection', socket => {
         socket.emit('showError', {message: "Can't set word list. User is in a room"});
       }
     } catch(error) {
-      log("ERROR 005: " + error);
+      log("ERROR 007: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
+      try {
+        socket.emit('showError', {message: "ERROR 007: " + error.message});
+      } catch{}
     }
   });
 
   //Change Name
-  socket.on('changeName', (data) => {
-    try {}
+  socket.on('changeName', dataString => {
+    try{
+      let data = JSON.parse(dataString);
       let newName = data.name;
       if (session.roomID != null){
         if (gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === newName)) {
@@ -337,13 +365,17 @@ io.on('connection', socket => {
         socket.emit('showError', {message: "Can't change name. User is in a room"});
       }
     } catch(error) {
-      log("ERROR 006: " + error);
+      log("ERROR 008: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
+      try {
+        socket.emit('showError', {message: "ERROR 008: " + error.message});
+      } catch{}
     }
   });
 
   //Change Host
-  socket.on('changeHost', (data) => {
-    try {
+  socket.on('changeHost', dataString => {
+    try{
+      let data = JSON.parse(dataString);
       let newHost = data.host;
       if (session.roomID != null){
         if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
@@ -360,13 +392,17 @@ io.on('connection', socket => {
         socket.emit('showError', {message: "Can't change host User is in a room"});
       }
     } catch(error) {
-      log("ERROR 007: " + error);
+      log("ERROR 009: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
+      try {
+        socket.emit('showError', {message: "ERROR 009: " + error.message});
+      } catch{}
     }
   });
 
   //Change Scores
-  socket.on('changePlayerScore', (data) => {
-    try {
+  socket.on('changePlayerScore', dataString => {
+    try{
+      let data = JSON.parse(dataString);
       let player = data.player;
       let score = data.score;
       if (session.roomID != null){
@@ -384,13 +420,17 @@ io.on('connection', socket => {
         socket.emit('showError', {message: "Can't change host User is in a room"});
       }
     } catch(error) {
-      log("ERROR 008: " + error);
+      log("ERROR 010: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
+      try {
+        socket.emit('showError', {message: "ERROR 010: " + error.message});
+      } catch{}
     }
   });
 
   //Kick Player
-  socket.on('kickPlayer', (data) => {
-    try {
+  socket.on('kickPlayer', dataString => {
+    try{
+      let data = JSON.parse(dataString);
       let player = data.player;
       if (session.roomID != null){
         if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
@@ -407,13 +447,17 @@ io.on('connection', socket => {
         socket.emit('showError', {message: "Can't change host User is in a room"});
       }
     } catch(error) {
-      log("ERROR 009: " + error);
+      log("ERROR 011: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
+      try {
+        socket.emit('showError', {message: "ERROR 011: " + error.message});
+      } catch{}
     }
   });
 
   //Guess Artist
-  socket.on('guessArtist', (data) => {
+  socket.on('guessArtist', dataString => {
     try{
+      let data = JSON.parse(dataString);
       let player = data.player;
       if (session.roomID != null){
         if (gameState.rooms[roomIndex].state != roomStates.addingWords) {
@@ -444,13 +488,17 @@ io.on('connection', socket => {
         socket.emit('showError', {message: "Can't change host User is in a room"});
       }
     } catch(error) {
-      log("ERROR 010: " + error);
+      log("ERROR 012: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
+      try {
+        socket.emit('showError', {message: "ERROR 012: " + error.message});
+      } catch{}
     }
   });
 
   //Disconnected
-  socket.on('disconnect', (data) => {
-    try {
+  socket.on('disconnect', dataString => {
+    try{
+      let data = JSON.parse(dataString);
       if (session.room != null) {
         log("Disconnected " + info.player + " from " + info.room + " " + session.socketID);
         playerRemove(session.roomID, session.playerName);
@@ -458,7 +506,10 @@ io.on('connection', socket => {
         log("Disconnected blank connection " + session.socketID);
       }
     } catch(error) {
-      log("ERROR 010: " + error);
+      log("ERROR 013: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
+      try {
+        socket.emit('showError', {message: "ERROR 013: " + error.message});
+      } catch{}
     }
   });
 });
