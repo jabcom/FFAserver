@@ -11,10 +11,10 @@ FFA communicates using socket.io. New connections will remain unassigned before 
 
 **Data:**
 ```
-{version: "0.0.1", salt: "ab78a7071eb525b1e762a65d5be83fcc", name: "TestServer"}
+{version: "0.0.1", name: "TestServer"}
 ```
 **Notes:**
-The Salt is important as this is used for hashing the join room request
+
 
 
 ### Show Error ###
@@ -26,6 +26,38 @@ The Salt is important as this is used for hashing the join room request
 ```
 **Notes:**
 The message should be displayed to the user.
+
+### Room Info ###
+**Event:** `roomInfo`
+
+**Data:**
+```
+{"id": "QWRT",
+"host": "Dave",
+"state": 0,
+"categorys": ["Cat1","Cat2","Cat3"],
+"category": "My Category",
+"word":"",
+"artist": "",
+"players": [{
+ "name": "Dave",
+ "state": 0,
+ "score": 0,
+ "wordCount": 0,
+ "guessed": false,
+ "wordlist":[]
+ }],
+"lastArtist": ""
+```
+**Notes:**
+The most used data. This will be sent to the client upon any change to the room. The exact data retuned may differ based on the player and state of the room.
+For room and player states see index.js
+
+* categorys will only be sent if player is host
+* word will only be sent to the non artists, otherwise it is a blank string
+* artist will only be sent if player is artist or to all players in roomstates after artist is found. Otherwise it is a blank string
+* wordlist will only be sent to the same player otherwise it is not set
+* lastArtist is the artist name from the last round, if more than one round played
 
 
 ## Client Emitters ##
