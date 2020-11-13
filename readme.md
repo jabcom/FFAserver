@@ -39,6 +39,7 @@ The message should be displayed to the user.
 "category": "My Category",
 "word":"",
 "artist": "",
+"minWords: 3,
 "players": [{
  "name": "Dave",
  "state": 0,
@@ -67,20 +68,48 @@ For room and player states see index.js
 
 **Event:** `serverInfo`
 
-**Data:** None
+**Data:** '''
+{}
+'''
 
 **Requirements:** none
 
 **Result:** Return Data emitted to client `serverInfo`
 
 
+### Get Game State ###
+
+**Event:** `gameState`
+
+**Data:** '''
+{}
+'''
+
+**Requirements:** Server in debugMode
+
+**Result:** Emits entire game state to client `serverInfo`
+
+
+### Get Room Info ###
+
+**Event:** `roomInfo`
+
+**Data:** '''
+{}
+'''
+
+**Requirements:** Player be in a room
+
+**Result:** Emits `roomInfo` to client
+
+
 ### Create a new room ###
 
-**Event:** `newRoom`
+**Event:** `createRoom`
 
 **Data:**
 ```
-{playerName: "PlayerOne", passcode: "lemein"}
+{playerName: "PlayerOne"}
 ```
 **Requirements:** none
 
@@ -100,7 +129,7 @@ For room and player states see index.js
 * Be host of the room
 * Room is in state "lobby"
 
-**Result:** If successful `serverInfo` will be emitted to all in room. If player is not host will send message to `showError`
+**Result:** If successful `serverInfo` will be emitted to all in room.
 
 
 ### Add Word List ###
@@ -115,23 +144,149 @@ For room and player states see index.js
 * Be joined to a room
 * Room is in state "addingWords"
 
-**Result:** `roomInfo` will be emitted back to client, with players word list
+**Result:** `roomInfo` will be emitted back to client, with players word list. All items after the minWords setting will be ignored
 
 
-### StartGame ###
+### Change Name ###
+
+**Event:** `changeName`
+
+**Data:**
+'''
+{"newName": "Dave2"}
+'''
+**Requirements:**
+* Be joined to a room
+
+**Result:** `roomInfo` will be emitted back to client
+
+
+### Change Host ###
+
+**Event:** `changeHost`
+
+**Data:**
+'''
+{"newHost": "Dave2"}
+'''
+**Requirements:**
+* Be joined to a room
+* Player is current host
+* newHost is a player currently in the room
+
+**Result:** `roomInfo` will be emitted back to all in room
+
+
+### Change Score ###
+
+**Event:** `changeScore`
+
+**Data:**
+'''
+{"playerName": "Dave2", newScore: 5}
+'''
+**Requirements:**
+* Be joined to a room
+* Player is current host
+* playerName is a player currently in the room
+* newScore is a positive interger
+
+**Result:** `roomInfo` will be emitted back to all in room
+
+
+### Kick Player ###
+
+**Event:** `kickPlayer`
+
+**Data:**
+'''
+{"playerName": "Dave2"}
+'''
+**Requirements:**
+* Be joined to a room
+* Player is current host
+* playerName is a player currently in the room
+
+**Result:** `roomInfo` will be emitted back to all in room
+
+
+
+### Guess Artist ###
+
+**Event:** `guessArtist`
+
+**Data:**
+'''
+{"playerName": "Dave2"}
+'''
+**Requirements:**
+* Be joined to a room
+* Player is current host
+* playerName is a player currently in the room
+* Room State is playingGame
+
+**Result:** `roomInfo` will be emitted back to all in room. If guess was correct artist will gain points and `guessed` will be set to true on the incorectly guessed player. If guess was correct points will go to all players and game state will move to artistGuessed. If artist was not guessed, but only one player remains artist will be shown, but no points will be set
+
+
+### Start Game ###
 
 **Event:** `startGame`
 
 **Data:**
-
-None
+'''
+{}
+'''
 **Requirements:**
 * Be joined to a room
-* Player is host
-* Room is in state "addingWords"
-* All Players have entered min number of words
+* Player is current host
+* More than one player in room
+* Category has been set
+* Room is in state lobby
 
-**Result:** `roomInfo` will be emitted back to client, with players word list
+**Result:** `roomInfo` will be emitted back to client
+
+
+### Guess Word ###
+
+**Event:** `guessWord`
+
+**Data:**
+'''
+{"wasCorrect":true}
+'''
+**Requirements:**
+* Be joined to a room
+* Player is current host
+* Room is in state artistGuessed
+
+**Result:** `roomInfo` will be emitted back to client. If artist was correct points will be set  Room state will move to artistGuessed
+
+
+### New Game ###
+
+**Event:** `newGame`
+
+**Data:**
+'''
+{}
+'''
+**Requirements:**
+* Be joined to a room
+* Player is current host
+
+**Result:** `roomInfo` will be emitted back to client. Scores and lastArtist will be saved/set
+
+
+### Disconnect / Quit ###
+
+**Event:** `disconnect`
+
+**Data:** N/A
+
+**Requirements:**
+
+
+**Result:** `roomInfo` will be emitted back to all left in room. If player was host, another player will be set. Will automaticly trigger if socket.io is dosconnected
 
 
 # Client Examples #
