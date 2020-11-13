@@ -64,7 +64,7 @@ function createRoom(playerName, socketID) {
     word: "",
     category: "",
     artist: "",
-    lastWinner: "",
+    lastArtist: "",
     host: playerName,
     players: [{
       name: playerName,
@@ -73,7 +73,7 @@ function createRoom(playerName, socketID) {
       score: 0,
       socketID: socketID,
       guessed: false
-    }],
+    }]
   }
   gameState.rooms.push(roomData);
   return roomName;
@@ -164,7 +164,7 @@ function getRoomInfo(roomID, playerName) {
     state: room.state,
     category: room.category,
     players: [],
-    lastWinner: room.lastWinner
+    lastArtist: room.lastArtist
   }
   if (playerName != room.artist) {
     returnData.word = room.word;
@@ -378,8 +378,8 @@ io.on('connection', socket => {
           if (gameState.rooms[roomIndex].host == oldName) {
             gameState.rooms[roomIndex].host = newName
           }
-          if (gameState.rooms[roomIndex].lastWinner == oldName) {
-            gameState.rooms[roomIndex].lastWinner = newName
+          if (gameState.rooms[roomIndex].lastArtist == oldName) {
+            gameState.rooms[roomIndex].lastArtist = newName
           }
           sendUpdateRoom(session.roomID);
         }
@@ -607,6 +607,49 @@ io.on('connection', socket => {
       log("ERROR 015: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
         socket.emit('showError', {message: "ERROR 015: " + error.message});
+      } catch{}
+    }
+  });
+
+  socket.on('newGame', dataString => {
+    try{
+      let roomIndex = getRoomIndex(session.roomID);
+      if (gameState.rooms[roomIndex].host == session.playerName) {
+        //Do we want it to be resetable in any room state?
+        if (gameState.rooms[roomIndex].state == roomStates.wordGuessed) {
+          let oldRoom = gameState.rooms[roomIndex];
+          let oldPlayers = gameState.rooms[roomIndex].players;
+          let newRoom = {
+            id: oldRoom.id,
+            state: 0,
+            word: "",
+            category: "",
+            artist: "",
+            lastArtist: oldRoom.artist,
+            host: oldRoom.host,
+            players: []
+          }
+          for (let i = 0; i < oldRoom.players.length; i++) {
+            newRoom.players.push({
+              name: oldRoom.players[i].name,
+              state: 0,
+              wordList: [],
+              score: oldRoom.players[i].score,
+              socketID: oldRoom.players[i].socketID,
+              guessed: false
+            })
+          }
+          sendUpdateRoom(session.roomID);
+        } else {
+          socket.emit('showError', {message: "Room is not in correct state"});
+        }
+      } else {
+        socket.emit('showError', {message: "User is not host. Not allowed to restart game"});
+      }
+    } catch(error) {
+      log("ERROR 016: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
+      try {
+        socket.emit('showError', {message: "ERROR 016: " + error.message});
       } catch{}
     }
   });
