@@ -18,7 +18,11 @@ var gameState = {
   categorys: ["Cat1", "Cat2", "Cat3"],
   settings: {
     minWords: 3,
-    debugMode: true
+    debugMode: true,
+    scores: {
+      artistDiscovered: 1,
+      artistGuessedWord: 3
+    }
   },
   rooms: []
 };
@@ -87,6 +91,12 @@ function updateReadyWordStatus(roomID, playerName) {
   //Set Server
   if (!gameState.rooms[roomIndex].players.some(player => player.status === playerStates.addingWords)) {
     gameState.rooms[roomIndex].state = roomStates.playingGame;
+    let totalWordList = []
+    for (let i = 0; i < gameState.rooms[roomIndex].players.length; i++) {
+      totalWordList.concat(gameState.rooms[roomIndex].players[i].wordList);
+    }
+    gameState.rooms[roomIndex].word = totalWordList[Math.floor(Math.random() * totalWordList.length)]
+
   }
 }
 
@@ -147,9 +157,13 @@ function getRoomInfo(roomID, playerName) {
   }
   if (playerName != room.artist) {
     returnData.word = room.word;
-    returnData.artist = false;
   } else {
-    returnData.artist = true;
+    returnData.word = "";
+  }
+  if ((playerName != room.artist) || (room.state >= roomStates.artistGuessed)) {
+    returnData.artist = "";
+  } else {
+    returnData.artist = room.artist;
   }
   if ((room.host == playerName) && (room.state == roomStates.lobby)) {
     returnData.categorys = gameState.categorys;
@@ -312,6 +326,7 @@ io.on('connection', socket => {
 
   //Set WordList
   socket.on('setWordList', dataString => {
+    //TODO check for empty/invalid words
     try{
       let data = JSON.parse(dataString);
       if (session.roomID != null){
@@ -462,17 +477,23 @@ io.on('connection', socket => {
   socket.on('guessArtist', dataString => {
     try{
       let data = JSON.parse(dataString);
-      let player = data.player;
+      let playerGuess = data.playerName;
       if (session.roomID != null){
-        if (gameState.rooms[roomIndex].state != roomStates.addingWords) {
+        let playerGuessIndex = getPlayerIndex(session.roomID, playerGuess);
+        let roomIndex = getRoomIndex(session.roomID);
+        if (gameState.rooms[roomIndex].state == roomStates.playingGame) {
           if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
-            if (gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === player)) {
-              if (gameState.rooms[getRoomIndex(session.RoomID)].artist == player) {
+            if (gameState.rooms[roomIndex].players.some(player => player.name === playerGuess)) {
+              if (gameState.rooms[roomIndex].artist == playerGuess) {
                 //was artist
-                gameState.rooms[getRoomIndex(session.RoomID)].state = roomStates.playingGame;
-                //scores
-                //send was artist emmit
-                //
+                gameState.rooms[roomIndex].state = roomStates.artistGuessed;
+                //TODO: Dont ive scores if artist was last to be found
+                for(let i = 0; i < gameState.rooms[roomIndex].players.length; i++) {
+                  if (gameState.rooms[roomIndex].players[i].name != playerGuess) {
+                    gameState.rooms[roomIndex].players[i].score += gameState.settings.scores.artistDiscovered;
+                  }
+                }
+                sendUpdateRoom(session.roomID);
               } else {
                 //was not artist
                 //set points
