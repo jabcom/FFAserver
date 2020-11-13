@@ -397,16 +397,23 @@ io.on('connection', socket => {
   });
 
   //Change Scores
-  socket.on('changePlayerScore', dataString => {
+  socket.on('changeScore', dataString => {
     try{
       let data = JSON.parse(dataString);
-      let player = data.player;
-      let score = data.score;
+      let subjectPlayer = data.playerName;
+      let score = parseInt(data.newScore);
       if (session.roomID != null){
-        if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
-          if (gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === player)) {
-            gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(player)].score = score;
-            sendUpdateRoom(session.roomID);
+        let roomIndex = getRoomIndex(session.roomID);
+        let playerIndex = getPlayerIndex(session.roomID, session.playerName);
+        let subjectPlayerIndex = getPlayerIndex(session.roomID, subjectPlayer);
+        if (session.playerName == gameState.rooms[roomIndex].host) {
+          if (gameState.rooms[roomIndex].players.some(player => player.name === subjectPlayer)) {
+            if (score >= 0) {
+              gameState.rooms[roomIndex].players[subjectPlayerIndex].score = score;
+              sendUpdateRoom(session.roomID);
+            } else {
+              socket.emit('showError', {message: "Score must be a posotive interger"});
+            }
           } else {
             socket.emit('showError', {message: "Player does not exist"});
           }
@@ -414,7 +421,7 @@ io.on('connection', socket => {
           socket.emit('showError', {message: "User is not host"});
         }
       } else {
-        socket.emit('showError', {message: "Can't change host User is in a room"});
+        socket.emit('showError', {message: "Can't change Score User is in a room"});
       }
     } catch(error) {
       log("ERROR 010: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
