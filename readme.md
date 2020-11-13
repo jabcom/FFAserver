@@ -68,9 +68,7 @@ For room and player states see index.js
 
 **Event:** `serverInfo`
 
-**Data:** '''
-{}
-'''
+**Data:** `{}`
 
 **Requirements:** none
 
@@ -81,9 +79,7 @@ For room and player states see index.js
 
 **Event:** `gameState`
 
-**Data:** '''
-{}
-'''
+**Data:** `{}`
 
 **Requirements:** Server in debugMode
 
@@ -94,9 +90,7 @@ For room and player states see index.js
 
 **Event:** `roomInfo`
 
-**Data:** '''
-{}
-'''
+**Data:** `{}`
 
 **Requirements:** Player be in a room
 
@@ -107,10 +101,8 @@ For room and player states see index.js
 
 **Event:** `createRoom`
 
-**Data:**
-```
-{playerName: "PlayerOne"}
-```
+**Data:**`{playerName: "PlayerOne"}`
+
 **Requirements:** none
 
 **Result:** server will emit `roomInfo` back to client
@@ -120,10 +112,8 @@ For room and player states see index.js
 
 **Event:** `setCategory`
 
-**Data:**
-```
-{category: "MyCategory"}
-```
+**Data:** `{category: "MyCategory"}`
+
 **Requirements:**
 * Be joined to a room
 * Be host of the room
@@ -136,10 +126,8 @@ For room and player states see index.js
 
 **Event:** `setWordList`
 
-**Data:**
-```
-{list: ["word1", "word2", "word3"]}
-```
+**Data:** `{list: ["word1", "word2", "word3"]}`
+
 **Requirements:**
 * Be joined to a room
 * Room is in state "addingWords"
@@ -151,10 +139,8 @@ For room and player states see index.js
 
 **Event:** `changeName`
 
-**Data:**
-'''
-{"newName": "Dave2"}
-'''
+**Data:** `{"newName": "Dave2"}`
+
 **Requirements:**
 * Be joined to a room
 
@@ -165,10 +151,8 @@ For room and player states see index.js
 
 **Event:** `changeHost`
 
-**Data:**
-'''
-{"newHost": "Dave2"}
-'''
+**Data:** `{"newHost": "Dave2"}`
+
 **Requirements:**
 * Be joined to a room
 * Player is current host
@@ -181,10 +165,8 @@ For room and player states see index.js
 
 **Event:** `changeScore`
 
-**Data:**
-'''
-{"playerName": "Dave2", newScore: 5}
-'''
+**Data:** `{"playerName": "Dave2", newScore: 5}`
+'
 **Requirements:**
 * Be joined to a room
 * Player is current host
@@ -198,10 +180,8 @@ For room and player states see index.js
 
 **Event:** `kickPlayer`
 
-**Data:**
-'''
-{"playerName": "Dave2"}
-'''
+**Data:** `{"playerName": "Dave2"}`
+
 **Requirements:**
 * Be joined to a room
 * Player is current host
@@ -215,10 +195,8 @@ For room and player states see index.js
 
 **Event:** `guessArtist`
 
-**Data:**
-'''
-{"playerName": "Dave2"}
-'''
+**Data:** `{"playerName": "Dave2"}`
+
 **Requirements:**
 * Be joined to a room
 * Player is current host
@@ -232,10 +210,8 @@ For room and player states see index.js
 
 **Event:** `startGame`
 
-**Data:**
-'''
-{}
-'''
+**Data:** `{}`
+
 **Requirements:**
 * Be joined to a room
 * Player is current host
@@ -250,10 +226,8 @@ For room and player states see index.js
 
 **Event:** `guessWord`
 
-**Data:**
-'''
-{"wasCorrect":true}
-'''
+**Data:** `{"wasCorrect":true}`
+
 **Requirements:**
 * Be joined to a room
 * Player is current host
@@ -266,10 +240,8 @@ For room and player states see index.js
 
 **Event:** `newGame`
 
-**Data:**
-'''
-{}
-'''
+**Data:** `{}`
+
 **Requirements:**
 * Be joined to a room
 * Player is current host
@@ -288,9 +260,3 @@ For room and player states see index.js
 
 **Result:** `roomInfo` will be emitted back to all left in room. If player was host, another player will be set. Will automaticly trigger if socket.io is dosconnected
 
-
-# Client Examples #
-
-## Creating a new room ##
-
-## Joining a Room ##
