@@ -13,12 +13,12 @@ var roomStates = {
 var gameState = {
   server: {
     version: "0.0.1",
-    salt: "Salt",
     name: "localhost"
   },
   categorys: ["Cat1", "Cat2", "Cat3"],
   settings: {
-    minWords: 3
+    minWords: 3,
+    debugMode: true
   },
   rooms: [{
     id: "EKIW",
@@ -51,45 +51,43 @@ function log(message) {
   console.log(new Date().toISOString() + " - " + message);
 }
 
-function updateSalt() {
-  gameState.server.salt = crypto.randomBytes(16).toString('hex');
-  io.emit('saltUpdate', {salt: gameState.server.salt});
-  log("Salt updated: " + gameState.server.salt);
-}
-
 function genRoomName() {
-  let returnName = "";
+  let returnName = [];
   for (let i = 0; i < 4; i++) {
-    name += roomCharList[Math.floor(Math.Random() * roomCharList.length)]
+    returnName[i] = roomCharList[Math.floor(Math.random() * roomCharList.length)]
   }
-  return returnName
+  return returnName.join("");
 }
 
-function createRoom(playerName, passcode, socketID) {
+function createRoom(playerName, socketID) {
   //Create unused room name
   let roomName = ""
   let roomNameInvalid = true;
   do {
     roomName = genRoomName();
-    if (gameState.rooms.some(room => room.ID === roomName)) {
+    if (!gameState.rooms.some(room => room.ID === roomName)) {
       roomNameInvalid = false;
     }
   } while(roomNameInvalid)
+  log(roomName);
   roomData = {
     id: roomName,
     state: 0,
     word: "",
     category: "",
     artist: "",
+    lastWinner: "",
+    host: playerName,
     players: [{
       name: playerName,
       state: 0,
       wordList: [],
       score: 0,
-      socketID: socketID
+      socketID: socketID,
+      guessed: false
     }],
-    host: playerName
   }
+  gameState.rooms.push(roomData);
   return roomName;
 }
 
@@ -143,12 +141,14 @@ function sendMessageRoom(roomID, subject, message) {
 
 function sendUpdateRoom(roomID) {
   let room = gameState.rooms.find(element => element.id === roomID);
+  log("Updating " + roomID)
   for (let player of room.players) {
-    io.to(player.socketID).emit('roomInfo', getRoomInfo(session.roomID, session.playerName));
+    io.to(player.socketID).emit('roomInfo', getRoomInfo(roomID, player.name));
   }
 }
 
 function getRoomInfo(roomID, playerName) {
+  log("Getting info for " + roomID);
   let room = gameState.rooms.find(element => element.id === roomID);
   returnData = {
     host: room.host,
@@ -171,7 +171,8 @@ function getRoomInfo(roomID, playerName) {
       name: player.name,
       state: player.state,
       score: player.score,
-      wordCount: player.wordList.length
+      wordCount: player.wordList.length,
+      guessed: player.guessed
     };
     if (player.name == playerName) {
       playerData.wordList = player.wordList;
@@ -193,181 +194,271 @@ io.on('connection', socket => {
   };
 
   //ServerInfo
-  socket.on('serverInfo', socket => {
-    let serverInfo = gameState.server;
-    serverInfo.minWords = gameState.settings.minWords;
-    socket.emit('serverInfo', gameState.server);
+  socket.on('serverInfo', (data) => {
+    try {
+      log(socket.id);
+      let serverInfo = gameState.server;
+      serverInfo.minWords = gameState.settings.minWords;
+      socket.emit('serverInfo', gameState.server);
+    } catch(error) {
+      log("ERROR 011: " + error);
+    }
+  });
+
+  //Debug Gamestate
+  socket.on('gameState', (data) => {
+    try {
+      if (gameState.settings.debugMode){
+        socket.emit('serverInfo', gameState);
+      }
+    } catch(error) {
+      log("ERROR 012: " + error);
+    }
   });
 
   //RoomInfo
-  socket.on('roomInfo', socket => {
-    if (session.roomID != null){
-      socket.emit('roomInfo', getRoomInfo(session.roomID, session.playerName));
-    } else {
-      socket.emit('showError', {message: "Can't get room info. User is in a room"});
+  socket.on('roomInfo', (data) => {
+    try {
+      if (session.roomID != null){
+        socket.emit('roomInfo', getRoomInfo(session.roomID, session.playerName));
+      } else {
+        socket.emit('showError', {message: "Can't get room info. User is in a room"});
+      }
+    } catch(error) {
+      log("ERROR 002: " + error);
     }
   });
 
   //JoinRoom
-  socket.on('joinRoom', (socket, data) => {
-    let roomID = data.roomID;
-    let playerName = data.playerName;
-    let hash = data.hash;
-    if (gameState.rooms.some(room => room.ID === roomID)) {
-      let room = gameState.rooms.find(element => element.id === roomID);
-      if (room.state != roomStates.lobby) {
-        if (room.players.some(player => player.name === playerName)) {
-          gameState.rooms[getRoomIndex(roomID)].players[getPlayerIndex(playerName)].push({
-            name: playerName,
-            state: 0,
-            wordList: [],
-            score: 0,
-            socketID: socket.ID
-          });
-          session.roomID = roomID;
-          session.playerName = playerName;
-          sendUpdateRoom(roomID);
+  socket.on('joinRoom', (data) => {
+    try {
+      let roomID = data.roomID;
+      let playerName = data.playerName;
+      if (gameState.rooms.some(room => room.ID === roomID)) {
+        let room = gameState.rooms.find(element => element.id === roomID);
+        if (room.state != roomStates.lobby) {
+          if (room.players.some(player => player.name === playerName)) {
+            gameState.rooms[getRoomIndex(roomID)].players[getPlayerIndex(playerName)].push({
+              name: playerName,
+              state: 0,
+              wordList: [],
+              score: 0,
+              socketID: socket.ID
+            });
+            session.roomID = roomID;
+            session.playerName = playerName;
+            sendUpdateRoom(roomID);
+          } else {
+            socket.emit('showError', {message: "Name already taken"});
+          }
         } else {
-          socket.emit('showError', {message: "Name already taken"});
+          socket.emit('showError', {message: "Room is not in lobby"});
         }
       } else {
-        socket.emit('showError', {message: "Room is not in lobby"});
+        socket.emit('showError', {message: "Room does not exist"});
       }
-    } else {
-      socket.emit('showError', {message: "Room does not exist"});
+    } catch(error) {
+      log("ERROR 003: " + error);
     }
   });
 
   //NewRoom
-  socket.on('createRoom', (socket, data) => {
-    let playerName = data.playerName;
-    let passcode = data.passcode;
-    let roomID = createRoom(playerName, passcode, session.socketID);
-    socket.join('Room'+roomID)
-    sendUpdateRoom(roomID)
+  socket.on('createRoom', dataString => {
+    try{
+      let data = JSON.parse(dataString);
+      let playerName = data.playerName;
+      log("Creating room with player " + data);
+      let roomID = createRoom(playerName, session.socketID);
+      socket.join('Room'+roomID)
+      sendUpdateRoom(roomID);
+    } catch(error) {
+      log("ERROR 001: " + error);
+    }
   });
 
   //setCategory
-  socket.on('setCategory', (socket, data) => {
-    let roomIndex = getRoomIndex(session.roomID);
-    if (gameState.rooms[roomIndex].host == session.playerName) {
-      if (gameState.rooms[roomIndex].state != roomStates.lobby) {
-        gameState.rooms[getRoomIndex(session.roomID)].category = data.category;
-        sendUpdateRoom(session.roomID);
+  socket.on('setCategory', (data) => {
+    try {
+      let roomIndex = getRoomIndex(session.roomID);
+      if (gameState.rooms[roomIndex].host == session.playerName) {
+        if (gameState.rooms[roomIndex].state != roomStates.lobby) {
+          gameState.rooms[getRoomIndex(session.roomID)].category = data.category;
+          sendUpdateRoom(session.roomID);
+        } else {
+          socket.emit('showError', {message: "Room is not in state lobby"});
+        }
       } else {
-        socket.emit('showError', {message: "Room is not in state lobby"});
+        socket.emit('showError', {message: "User is not host. Not allowed to change category"});
       }
-    } else {
-      socket.emit('showError', {message: "User is not host. Not allowed to change category"});
+    } catch(error) {
+      log("ERROR 004: " + error);
     }
   });
 
   //Set WordList
-  socket.on('setWordList', (socket, data) => {
-    if (session.roomID != null){
-      if (gameState.rooms[roomIndex].state != roomStates.addingWords) {
-        gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(session.playerName)].wordList = data.list.slice(0, gameState.settings.minWords);
-        updateReadyWordStatus(roomID, playerName);
-        sendUpdateRoom(session.roomID);
+  socket.on('setWordList', (data) => {
+    try {
+      if (session.roomID != null){
+        if (gameState.rooms[roomIndex].state != roomStates.addingWords) {
+          gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(session.playerName)].wordList = data.list.slice(0, gameState.settings.minWords);
+          updateReadyWordStatus(roomID, playerName);
+          sendUpdateRoom(session.roomID);
+        } else {
+          socket.emit('showError', {message: "Room is not in state Adding Words"});
+        }
       } else {
-        socket.emit('showError', {message: "Room is not in state Adding Words"});
+        socket.emit('showError', {message: "Can't set word list. User is in a room"});
       }
-    } else {
-      socket.emit('showError', {message: "Can't set word list. User is in a room"});
+    } catch(error) {
+      log("ERROR 005: " + error);
     }
   });
 
   //Change Name
-  socket.on('changeName', (socket, data) => {
-    let newName = data.name;
-    if (session.roomID != null){
-      if (gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === newName)) {
-        socket.emit('showError', {message: "Name already in use"});
+  socket.on('changeName', (data) => {
+    try {}
+      let newName = data.name;
+      if (session.roomID != null){
+        if (gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === newName)) {
+          socket.emit('showError', {message: "Name already in use"});
+        } else {
+          gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(session.playerName)].name = newName
+          let oldName = session.playerName;
+          session.playerName = newName;
+          if (gameState.rooms[getRoomIndex(session.roomID)].host == oldName) {
+            gameState.rooms[getRoomIndex(session.roomID)].host = newName
+          }
+          if (gameState.rooms[getRoomIndex(session.roomID)].lastWinner == oldName) {
+            gameState.rooms[getRoomIndex(session.roomID)].lastWinner = newName
+          }
+          sendUpdateRoom(session.roomID);
+        }
       } else {
-        gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(session.playerName)].name = newName
-        let oldName = session.playerName;
-        session.playerName = newName;
-        if (gameState.rooms[getRoomIndex(session.roomID)].host == oldName) {
-          gameState.rooms[getRoomIndex(session.roomID)].host = newName
-        }
-        if (gameState.rooms[getRoomIndex(session.roomID)].lastWinner == oldName) {
-          gameState.rooms[getRoomIndex(session.roomID)].lastWinner = newName
-        }
-        sendUpdateRoom(session.roomID);
+        socket.emit('showError', {message: "Can't change name. User is in a room"});
       }
-    } else {
-      socket.emit('showError', {message: "Can't change name. User is in a room"});
+    } catch(error) {
+      log("ERROR 006: " + error);
     }
   });
 
   //Change Host
-  socket.on('changeHost', (socket, data) => {
-    let newHost = data.host;
-    if (session.roomID != null){
-      if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
-        if (!gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === newHost)) {
-          socket.emit('showError', {message: "New host name does not exist"});
+  socket.on('changeHost', (data) => {
+    try {
+      let newHost = data.host;
+      if (session.roomID != null){
+        if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
+          if (!gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === newHost)) {
+            socket.emit('showError', {message: "New host name does not exist"});
+          } else {
+            gameState.rooms[getRoomIndex(session.roomID)].host = newHost;
+            sendUpdateRoom(session.roomID);
+          }
         } else {
-          gameState.rooms[getRoomIndex(session.roomID)].host = newHost;
-          sendUpdateRoom(session.roomID);
+          socket.emit('showError', {message: "User is not host"});
         }
       } else {
-        socket.emit('showError', {message: "User is not host"});
+        socket.emit('showError', {message: "Can't change host User is in a room"});
       }
-    } else {
-      socket.emit('showError', {message: "Can't change host User is in a room"});
+    } catch(error) {
+      log("ERROR 007: " + error);
     }
   });
 
   //Change Scores
-  socket.on('changePlayerScore', (socket, data) => {
-    let player = data.player;
-    let score = data.score;
-    if (session.roomID != null){
-      if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
-        if (gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === player)) {
-          gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(player)].score = score;
-          sendUpdateRoom(session.roomID);
+  socket.on('changePlayerScore', (data) => {
+    try {
+      let player = data.player;
+      let score = data.score;
+      if (session.roomID != null){
+        if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
+          if (gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === player)) {
+            gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(player)].score = score;
+            sendUpdateRoom(session.roomID);
+          } else {
+            socket.emit('showError', {message: "Player does not exist"});
+          }
         } else {
-          socket.emit('showError', {message: "Player does not exist"});
+          socket.emit('showError', {message: "User is not host"});
         }
       } else {
-        socket.emit('showError', {message: "User is not host"});
+        socket.emit('showError', {message: "Can't change host User is in a room"});
       }
-    } else {
-      socket.emit('showError', {message: "Can't change host User is in a room"});
+    } catch(error) {
+      log("ERROR 008: " + error);
     }
   });
 
   //Kick Player
-  socket.on('kickPlayer', (socket, data) => {
-    let player = data.player;
-    if (session.roomID != null){
-      if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
-        if (gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === player)) {
-          io.to(gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(player).sockerID]).emit('disconnect'));
-          sendUpdateRoom(session.roomID);
+  socket.on('kickPlayer', (data) => {
+    try {
+      let player = data.player;
+      if (session.roomID != null){
+        if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
+          if (gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === player)) {
+            io.to(gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(player).sockerID]).emit('disconnect');
+            sendUpdateRoom(session.roomID);
+          } else {
+            socket.emit('showError', {message: "Player does not exist"});
+          }
         } else {
-          socket.emit('showError', {message: "Player does not exist"});
+          socket.emit('showError', {message: "User is not host"});
         }
       } else {
-        socket.emit('showError', {message: "User is not host"});
+        socket.emit('showError', {message: "Can't change host User is in a room"});
       }
-    } else {
-      socket.emit('showError', {message: "Can't change host User is in a room"});
+    } catch(error) {
+      log("ERROR 009: " + error);
+    }
+  });
+
+  //Guess Artist
+  socket.on('guessArtist', (data) => {
+    try{
+      let player = data.player;
+      if (session.roomID != null){
+        if (gameState.rooms[roomIndex].state != roomStates.addingWords) {
+          if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
+            if (gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === player)) {
+              if (gameState.rooms[getRoomIndex(session.RoomID)].artist == player) {
+                //was artist
+                gameState.rooms[getRoomIndex(session.RoomID)].state = roomStates.playingGame;
+                //scores
+                //send was artist emmit
+                //
+              } else {
+                //was not artist
+                //set points
+                //if < 3 lef tto guess - force guess artist
+
+              }
+            } else {
+              socket.emit('showError', {message: "Player does not exist"});
+            }
+          } else {
+            socket.emit('showError', {message: "User is not host"});
+          }
+        } else {
+          socket.emit('showError', {message: "Room not in correct state"});
+        }
+      } else {
+        socket.emit('showError', {message: "Can't change host User is in a room"});
+      }
+    } catch(error) {
+      log("ERROR 010: " + error);
     }
   });
 
   //Disconnected
-  socket.on('disconnect', socket => {
-    if (session.room != null) {
-      log("Disconnected " + info.player + " from " + info.room + " " + session.socketID);
-      playerRemove(session.roomID, session.playerName);
-    } else {
-      log("Disconnected blank connection " + session.socketID);
+  socket.on('disconnect', (data) => {
+    try {
+      if (session.room != null) {
+        log("Disconnected " + info.player + " from " + info.room + " " + session.socketID);
+        playerRemove(session.roomID, session.playerName);
+      } else {
+        log("Disconnected blank connection " + session.socketID);
+      }
+    } catch(error) {
+      log("ERROR 010: " + error);
     }
   });
 });
-
-
-setInterval(updateSalt, 30*1000);
