@@ -584,4 +584,31 @@ io.on('connection', socket => {
     }
   });
 
+  socket.on('guessWord', dataString => {
+    try{
+      let roomIndex = getRoomIndex(session.roomID);
+      if (gameState.rooms[roomIndex].host == session.playerName) {
+        let data = JSON.parse(dataString);
+        let wasCorrect = data.wasCorrect
+        //Check - is this actually a bool?
+        if (gameState.rooms[roomIndex].state == roomStates.artistGuessed) {
+          gameState.rooms[roomIndex].state = roomSTates.wordGuessed;
+          if (wasCorrect) {
+            gameState.rooms[roomIndex].players[getPlayerIndex(roomID, gameState.rooms[roomIndex].artist)].score += gameState.settings.scores.artistGuessedWord;
+          }
+          sendUpdateRoom(session.roomID);
+        } else {
+          socket.emit('showError', {message: "Room is not in state artist guessed"});
+        }
+      } else {
+        socket.emit('showError', {message: "User is not host"});
+      }
+    } catch(error) {
+      log("ERROR 015: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
+      try {
+        socket.emit('showError', {message: "ERROR 015: " + error.message});
+      } catch{}
+    }
+  });
+
 });
