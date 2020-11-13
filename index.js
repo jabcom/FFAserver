@@ -21,7 +21,8 @@ var gameState = {
     debugMode: true,
     scores: {
       artistDiscovered: 1,
-      artistGuessedWord: 3
+      artistEvaded: 2,
+      artistGuessedWord: 1
     }
   },
   rooms: []
@@ -96,7 +97,6 @@ function updateReadyWordStatus(roomID, playerName) {
       totalWordList.concat(gameState.rooms[roomIndex].players[i].wordList);
     }
     gameState.rooms[roomIndex].word = totalWordList[Math.floor(Math.random() * totalWordList.length)]
-
   }
 }
 
@@ -143,6 +143,17 @@ function sendUpdateRoom(roomID) {
   for (let player of room.players) {
     io.to(player.socketID).emit('roomInfo', getRoomInfo(roomID, player.name));
   }
+}
+
+function getNonGuessedLeft(roomID) {
+  let room = gameState.rooms.find(element => element.id === roomID);
+  let playersLeft = 0;
+  for (let i = 0; i < room.players.length; i++) {
+    if (!room.players[i].guessed) {
+      playersLeft =+ 1;
+    }
+  }
+  return playersLeft;
 }
 
 function getRoomInfo(roomID, playerName) {
@@ -487,7 +498,6 @@ io.on('connection', socket => {
               if (gameState.rooms[roomIndex].artist == playerGuess) {
                 //was artist
                 gameState.rooms[roomIndex].state = roomStates.artistGuessed;
-                //TODO: Dont ive scores if artist was last to be found
                 for(let i = 0; i < gameState.rooms[roomIndex].players.length; i++) {
                   if (gameState.rooms[roomIndex].players[i].name != playerGuess) {
                     gameState.rooms[roomIndex].players[i].score += gameState.settings.scores.artistDiscovered;
@@ -496,9 +506,13 @@ io.on('connection', socket => {
                 sendUpdateRoom(session.roomID);
               } else {
                 //was not artist
-                //set points
-                //if < 3 lef tto guess - force guess artist
-
+                gameState.rooms[roomIndex].players[getPlayerIndex(roomID, gameState.rooms[roomIndex].artist)].score += gameState.settings.scores.artistEvaded;
+                if (getNonGuessedLeft(roomID) > 2) {
+                  gameState.rooms[roomID].players[playerGuessIndex].guessed = true;
+                } else {
+                  gameState.rooms[roomIndex].state = roomStates.artistGuessed;
+                }
+                sendUpdateRoom(session.roomID);
               }
             } else {
               socket.emit('showError', {message: "Player does not exist"});
