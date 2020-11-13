@@ -12,7 +12,7 @@ var roomStates = {
 };
 var gameState = {
   server: {
-    version: "0.0.1",
+    version: "0.1.1",
     name: "localhost"
   },
   categorys: ["Cat1", "Cat2", "Cat3"],
@@ -298,6 +298,7 @@ io.on('connection', socket => {
   });
 
   //NewRoom
+  //TODO, if player joins new room and was last in other, delete other
   socket.on('createRoom', dataString => {
     try{
       let data = JSON.parse(dataString);
