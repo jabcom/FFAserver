@@ -151,7 +151,7 @@ function getRoomInfo(roomID, playerName) {
   } else {
     returnData.artist = true;
   }
-  if (room.host == playerName) {
+  if ((room.host == playerName) && (room.state == roomStates.lobby)) {
     returnData.categorys = gameState.categorys;
   }
   for (let player of room.players) {
