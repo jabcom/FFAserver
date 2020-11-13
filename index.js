@@ -65,11 +65,10 @@ function createRoom(playerName, socketID) {
   let roomNameInvalid = true;
   do {
     roomName = genRoomName();
-    if (!gameState.rooms.some(room => room.ID === roomName)) {
+    if (!gameState.rooms.some(room => room.id === roomName)) {
       roomNameInvalid = false;
     }
   } while(roomNameInvalid)
-  log(roomName);
   roomData = {
     id: roomName,
     state: 0,
@@ -109,7 +108,7 @@ function getRoomIndex(roomID) {
   return gameState.rooms.findIndex(element => element.id === roomID);
 }
 function getPlayerIndex(roomID, playerName) {
-  return gameState.rooms[getRoomIndex(roomID)].players.findIndex(element => element.id === roomID);
+  return gameState.rooms[getRoomIndex(roomID)].players.findIndex(element => element.name === playerName);
 }
 
 function sendPlayerError(roomID, playerName, message) {
@@ -118,17 +117,20 @@ function sendPlayerError(roomID, playerName, message) {
 
 function playerRemove(roomID, playerName) {
   //Remove player from room
-  gameState.rooms[getRoomIndex(roomID)].players.splice(getPlayerIndex(roomID, playerName),1);
+  log("Removing " + playerName + " from " + roomID);
+  let roomIndex = getRoomIndex(roomID);
+  let playerIndex = getPlayerIndex(roomID, playerName);
+  gameState.rooms[roomIndex].players.splice(playerIndex, 1);
   //If room is empty delete room
-  if (gameState.rooms[getRoomIndex(roomID)].players.length == 0) {
-    gameState.rooms.splice(getRoomIndex(roomID), 1);
+  if (gameState.rooms[roomIndex].players.length == 0) {
+    gameState.rooms.splice(roomIndex, 1);
   } else {
-    if (gameState.rooms[getRoomIndex(roomID)].host == playerName) {
+    if (gameState.rooms[roomIndex].host == playerName) {
       //If player was host, set new host
-      gameState.rooms[getRoomIndex(roomID)].host = gameState.rooms[getRoomIndex(roomID)].players[0].name;
+      gameState.rooms[roomIndex].host = gameState.rooms[roomIndex].players[0].name;
     }
-    sendUpdateRoom(roomID);
   }
+  sendUpdateRoom(roomID);
 }
 
 function newConnection(socket) {
@@ -140,17 +142,17 @@ function sendMessageRoom(roomID, subject, message) {
 }
 
 function sendUpdateRoom(roomID) {
+  log("Updating room " + roomID);
   let room = gameState.rooms.find(element => element.id === roomID);
-  log("Updating " + roomID)
   for (let player of room.players) {
     io.to(player.socketID).emit('roomInfo', getRoomInfo(roomID, player.name));
   }
 }
 
 function getRoomInfo(roomID, playerName) {
-  log("Getting info for " + roomID);
   let room = gameState.rooms.find(element => element.id === roomID);
   returnData = {
+    id: room.id,
     host: room.host,
     state: room.state,
     category: room.category,
@@ -247,16 +249,17 @@ io.on('connection', socket => {
       let data = JSON.parse(dataString);
       let roomID = data.roomID;
       let playerName = data.playerName;
-      if (gameState.rooms.some(room => room.ID === roomID)) {
+      if (gameState.rooms.some(room => room.id === roomID)) {
         let room = gameState.rooms.find(element => element.id === roomID);
-        if (room.state != roomStates.lobby) {
-          if (room.players.some(player => player.name === playerName)) {
-            gameState.rooms[getRoomIndex(roomID)].players[getPlayerIndex(playerName)].push({
+        if (room.state == roomStates.lobby) {
+          if (!room.players.some(player => player.name === playerName)) {
+            gameState.rooms[getRoomIndex(roomID)].players.push({
               name: playerName,
               state: 0,
               wordList: [],
               score: 0,
-              socketID: socket.ID
+              socketID: session.socketID,
+              guessed: false
             });
             session.roomID = roomID;
             session.playerName = playerName;
@@ -283,10 +286,12 @@ io.on('connection', socket => {
     try{
       let data = JSON.parse(dataString);
       let playerName = data.playerName;
-      log("Creating room with player " + data);
       let roomID = createRoom(playerName, session.socketID);
+      session.roomID = roomID;
+      session.playerName = playerName;
       socket.join('Room'+roomID)
       sendUpdateRoom(roomID);
+      log(JSON.stringify(session));
     } catch(error) {
       log("ERROR 005: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
@@ -435,7 +440,7 @@ io.on('connection', socket => {
       if (session.roomID != null){
         if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
           if (gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === player)) {
-            io.to(gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(player).sockerID]).emit('disconnect');
+            io.to(gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(player).socketID]).emit('disconnect');
             sendUpdateRoom(session.roomID);
           } else {
             socket.emit('showError', {message: "Player does not exist"});
@@ -498,9 +503,9 @@ io.on('connection', socket => {
   //Disconnected
   socket.on('disconnect', dataString => {
     try{
-      let data = JSON.parse(dataString);
-      if (session.room != null) {
-        log("Disconnected " + info.player + " from " + info.room + " " + session.socketID);
+      //let data = JSON.parse(dataString);
+      if (session.roomID != null) {
+        log("Disconnected " + session.playerName + " from " + session.roomID + " " + session.socketID);
         playerRemove(session.roomID, session.playerName);
       } else {
         log("Disconnected blank connection " + session.socketID);
