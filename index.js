@@ -164,7 +164,8 @@ function getRoomInfo(roomID, playerName) {
     state: room.state,
     category: room.category,
     players: [],
-    lastArtist: room.lastArtist
+    lastArtist: room.lastArtist,
+    minWords: gameState.settings.minWords;
   }
   if (playerName != room.artist) {
     returnData.word = room.word;
@@ -314,6 +315,7 @@ io.on('connection', socket => {
 
   //setCategory
   socket.on('setCategory', dataString => {
+    //TODO check for blank/invalid category
     try{
       let data = JSON.parse(dataString);
       let roomIndex = getRoomIndex(session.roomID);
@@ -438,7 +440,7 @@ io.on('connection', socket => {
               gameState.rooms[roomIndex].players[subjectPlayerIndex].score = score;
               sendUpdateRoom(session.roomID);
             } else {
-              socket.emit('showError', {message: "Score must be a posotive interger"});
+              socket.emit('showError', {message: "Score must be a positive interger"});
             }
           } else {
             socket.emit('showError', {message: "Player does not exist"});
@@ -461,7 +463,7 @@ io.on('connection', socket => {
   socket.on('kickPlayer', dataString => {
     try{
       let data = JSON.parse(dataString);
-      let player = data.player;
+      let player = data.playerName;
       if (session.roomID != null){
         if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
           if (gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === player)) {
@@ -486,6 +488,7 @@ io.on('connection', socket => {
 
   //Guess Artist
   socket.on('guessArtist', dataString => {
+    //TODO check if player has already been guessed
     try{
       let data = JSON.parse(dataString);
       let playerGuess = data.playerName;
@@ -507,9 +510,8 @@ io.on('connection', socket => {
               } else {
                 //was not artist
                 gameState.rooms[roomIndex].players[getPlayerIndex(roomID, gameState.rooms[roomIndex].artist)].score += gameState.settings.scores.artistEvaded;
-                if (getNonGuessedLeft(roomID) > 2) {
-                  gameState.rooms[roomID].players[playerGuessIndex].guessed = true;
-                } else {
+                gameState.rooms[roomID].players[playerGuessIndex].guessed = true;
+                if (getNonGuessedLeft(roomID) < 2) {
                   gameState.rooms[roomIndex].state = roomStates.artistGuessed;
                 }
                 sendUpdateRoom(session.roomID);
@@ -552,7 +554,7 @@ io.on('connection', socket => {
     }
   });
 
-  socket.on('lockLobby', dataString => {
+  socket.on('startGame', dataString => {
     try{
       let roomIndex = getRoomIndex(session.roomID);
       if (gameState.rooms[roomIndex].host == session.playerName) {
@@ -615,34 +617,29 @@ io.on('connection', socket => {
     try{
       let roomIndex = getRoomIndex(session.roomID);
       if (gameState.rooms[roomIndex].host == session.playerName) {
-        //Do we want it to be resetable in any room state?
-        if (gameState.rooms[roomIndex].state == roomStates.wordGuessed) {
-          let oldRoom = gameState.rooms[roomIndex];
-          let oldPlayers = gameState.rooms[roomIndex].players;
-          let newRoom = {
-            id: oldRoom.id,
-            state: 0,
-            word: "",
-            category: "",
-            artist: "",
-            lastArtist: oldRoom.artist,
-            host: oldRoom.host,
-            players: []
-          }
-          for (let i = 0; i < oldRoom.players.length; i++) {
-            newRoom.players.push({
-              name: oldRoom.players[i].name,
-              state: 0,
-              wordList: [],
-              score: oldRoom.players[i].score,
-              socketID: oldRoom.players[i].socketID,
-              guessed: false
-            })
-          }
-          sendUpdateRoom(session.roomID);
-        } else {
-          socket.emit('showError', {message: "Room is not in correct state"});
+        let oldRoom = gameState.rooms[roomIndex];
+        let oldPlayers = gameState.rooms[roomIndex].players;
+        let newRoom = {
+          id: oldRoom.id,
+          state: 0,
+          word: "",
+          category: "",
+          artist: "",
+          lastArtist: oldRoom.artist,
+          host: oldRoom.host,
+          players: []
         }
+        for (let i = 0; i < oldRoom.players.length; i++) {
+          newRoom.players.push({
+            name: oldRoom.players[i].name,
+            state: 0,
+            wordList: [],
+            score: oldRoom.players[i].score,
+            socketID: oldRoom.players[i].socketID,
+            guessed: false
+          })
+        }
+        sendUpdateRoom(session.roomID);
       } else {
         socket.emit('showError', {message: "User is not host. Not allowed to restart game"});
       }
