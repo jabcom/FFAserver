@@ -20,23 +20,7 @@ var gameState = {
     minWords: 3,
     debugMode: true
   },
-  rooms: [{
-    id: "EKIW",
-    host: "dave",
-    state: 0,
-    word: "",
-    category: "",
-    artist: "",
-    passcode: "123",
-    lastWinner: "",
-    players: [{
-      name: "dave",
-      state: 0,
-      words: ["word", "another"],
-      score: 0,
-      socketID: ""
-    }]
-  }]
+  rooms: []
 };
 
 //WebServer
@@ -92,15 +76,17 @@ function createRoom(playerName, socketID) {
 
 function updateReadyWordStatus(roomID, playerName) {
   //Set player
-  player = gameState.rooms[getRoomIndex(roomID)].players[getPlayerIndex(playerName)];
+  let roomIndex = getRoomIndex(roomID);
+  let playerIndex = getPlayerIndex(roomID, playerName)
+  player = gameState.rooms[roomIndex].players[playerIndex];
   if (player.wordList.length < gameState.settings.minWords){
-    gameState.rooms[getRoomIndex(roomID)].players[getPlayerIndex(playerName)].state = playerStates.addedWords;
+    gameState.rooms[roomIndex].players[playerIndex].state = playerStates.addedWords;
   } else {
-    gameState.rooms[getRoomIndex(roomID)].players[getPlayerIndex(playerName)].state = playerStates.addingWords;
+    gameState.rooms[roomIndex].players[playerIndex].state = playerStates.addingWords;
   }
   //Set Server
-  if (!gameState.rooms[getRoomIndex(roomID)].players.some(player => player.status === playerStates.addingWords)) {
-    gameState.rooms[getRoomIndex(roomID)].state = roomStates.playingGame;
+  if (!gameState.rooms[roomIndex].players.some(player => player.status === playerStates.addingWords)) {
+    gameState.rooms[roomIndex].state = roomStates.playingGame;
   }
 }
 
@@ -244,6 +230,7 @@ io.on('connection', socket => {
   });
 
   //JoinRoom
+  //TODO, if player joins new room and was last in other, delete other
   socket.on('joinRoom', dataString => {
     try{
       let data = JSON.parse(dataString);
@@ -306,8 +293,8 @@ io.on('connection', socket => {
       let data = JSON.parse(dataString);
       let roomIndex = getRoomIndex(session.roomID);
       if (gameState.rooms[roomIndex].host == session.playerName) {
-        if (gameState.rooms[roomIndex].state != roomStates.lobby) {
-          gameState.rooms[getRoomIndex(session.roomID)].category = data.category;
+        if (gameState.rooms[roomIndex].state == roomStates.lobby) {
+          gameState.rooms[roomIndex].category = data.category;
           sendUpdateRoom(session.roomID);
         } else {
           socket.emit('showError', {message: "Room is not in state lobby"});
@@ -328,9 +315,11 @@ io.on('connection', socket => {
     try{
       let data = JSON.parse(dataString);
       if (session.roomID != null){
-        if (gameState.rooms[roomIndex].state != roomStates.addingWords) {
-          gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(session.playerName)].wordList = data.list.slice(0, gameState.settings.minWords);
-          updateReadyWordStatus(roomID, playerName);
+        let roomIndex = getRoomIndex(session.roomID);
+        let playerIndex = getPlayerIndex(session.roomID, session.playerName);
+        if (gameState.rooms[roomIndex].state == roomStates.addingWords) {
+          gameState.rooms[roomIndex].players[playerIndex].wordList = data.list.slice(0, gameState.settings.minWords);
+          updateReadyWordStatus(session.roomID, session.playerName);
           sendUpdateRoom(session.roomID);
         } else {
           socket.emit('showError', {message: "Room is not in state Adding Words"});
@@ -350,19 +339,21 @@ io.on('connection', socket => {
   socket.on('changeName', dataString => {
     try{
       let data = JSON.parse(dataString);
-      let newName = data.name;
+      let newName = data.newName;
+      let roomIndex = getRoomIndex(session.roomID);
+      let playerIndex = getPlayerIndex(session.roomID, session.playerName);
       if (session.roomID != null){
-        if (gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === newName)) {
+        if (gameState.rooms[roomIndex].players.some(player => player.name === newName)) {
           socket.emit('showError', {message: "Name already in use"});
         } else {
-          gameState.rooms[getRoomIndex(session.roomID)].players[getPlayerIndex(session.playerName)].name = newName
+          gameState.rooms[roomIndex].players[playerIndex].name = newName
           let oldName = session.playerName;
           session.playerName = newName;
-          if (gameState.rooms[getRoomIndex(session.roomID)].host == oldName) {
-            gameState.rooms[getRoomIndex(session.roomID)].host = newName
+          if (gameState.rooms[roomIndex].host == oldName) {
+            gameState.rooms[roomIndex].host = newName
           }
-          if (gameState.rooms[getRoomIndex(session.roomID)].lastWinner == oldName) {
-            gameState.rooms[getRoomIndex(session.roomID)].lastWinner = newName
+          if (gameState.rooms[roomIndex].lastWinner == oldName) {
+            gameState.rooms[roomIndex].lastWinner = newName
           }
           sendUpdateRoom(session.roomID);
         }
@@ -514,6 +505,27 @@ io.on('connection', socket => {
       log("ERROR 013: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
         socket.emit('showError', {message: "ERROR 013: " + error.message});
+      } catch{}
+    }
+  });
+
+  socket.on('lockLobby', dataString => {
+    try{
+      let roomIndex = getRoomIndex(session.roomID);
+      if (gameState.rooms[roomIndex].host == session.playerName) {
+        if (gameState.rooms[roomIndex].state == roomStates.lobby) {
+          gameState.rooms[roomIndex].state = 1;
+          sendUpdateRoom(session.roomID);
+        } else {
+          socket.emit('showError', {message: "Room is not in state lobby"});
+        }
+      } else {
+        socket.emit('showError', {message: "User is not host. Not allowed to start game"});
+      }
+    } catch(error) {
+      log("ERROR 014: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
+      try {
+        socket.emit('showError', {message: "ERROR 014: " + error.message});
       } catch{}
     }
   });
