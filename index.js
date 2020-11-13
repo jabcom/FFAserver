@@ -372,13 +372,14 @@ io.on('connection', socket => {
   socket.on('changeHost', dataString => {
     try{
       let data = JSON.parse(dataString);
-      let newHost = data.host;
+      let newHost = data.newHost;
+      let roomIndex = getRoomIndex(session.roomID);
       if (session.roomID != null){
-        if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
-          if (!gameState.rooms[getRoomIndex(session.roomID)].players.some(player => player.name === newHost)) {
+        if (session.playerName == gameState.rooms[roomIndex].host) {
+          if (!gameState.rooms[roomIndex].players.some(player => player.name === newHost)) {
             socket.emit('showError', {message: "New host name does not exist"});
           } else {
-            gameState.rooms[getRoomIndex(session.roomID)].host = newHost;
+            gameState.rooms[roomIndex].host = newHost;
             sendUpdateRoom(session.roomID);
           }
         } else {
