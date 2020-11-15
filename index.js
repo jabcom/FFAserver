@@ -1,22 +1,35 @@
-var app = require('express')();
-var http = require('http').createServer(app);
-var io = require('socket.io')(http);
-var roomCharList = ["B", "C", "D", "F", "G", "H", "J", "K", "M", "N", "P", "R", "S", "T", "W", "X", "Y", "Z"];
-var playerStates = {
+var express = require('express')
+var app = express()
+var http = require('http')
+var server = http.Server(app)
+var ior = require('socket.io')
+var io = ior().listen(server, {
+  cors: {
+    origin: '*',
+    credentials: true
+  },
+  transports: ['websocket','polling']
+})
+server.listen(3000);
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/public/index.html');
+});
+const roomCharList = ["B", "C", "D", "F", "G", "H", "J", "K", "M", "N", "P", "R", "S", "T", "W", "X", "Y", "Z"];
+const playerStates = {
   lobby: 0, addingWords: 1, addedWords: 2
 };
-var roomStates = {
+const roomStates = {
   lobby:0, addingWords: 1, playingGame: 2, artistGuessed: 3, wordGuessed: 4
 };
 var gameState = {
   server: {
     version: "0.1.1",
-    name: "localhost"
+    name: "testServer"
   },
   categorys: ["Cat1", "Cat2", "Cat3"],
   settings: {
     minWords: 3,
-    debugMode: true,
+    debugMode: false,
     scores: {
       artistDiscovered: 1,
       artistEvaded: 2,
@@ -27,12 +40,9 @@ var gameState = {
 };
 
 //WebServer
-http.listen(3000, () => {
-  console.log('listening on *:3000');
-});
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/index.html');
-});
+//http.listen(3000, () => {
+//  console.log('listening on *:3000');
+//});
 
 function log(message) {
   console.log(new Date().toISOString() + " - " + message);
@@ -194,7 +204,7 @@ function getRoomInfo(roomID, playerName) {
       guessed: player.guessed
     };
     if (player.name == playerName) {
-      playerData.wordList = player.wordList;
+      returnData.wordList = player.wordList;
     }
     returnData.players.push(playerData);
   }
@@ -215,8 +225,8 @@ io.on('connection', socket => {
   //ServerInfo
   socket.on('serverInfo', dataString => {
     try{
-      let data = JSON.parse(dataString);
-      log(socket.id);
+      //let data = dataString;
+      log(socket.id + " asked for server info");
       let serverInfo = gameState.server;
       serverInfo.minWords = gameState.settings.minWords;
       socket.emit('serverInfo', gameState.server);
@@ -231,7 +241,7 @@ io.on('connection', socket => {
   //Debug Gamestate
   socket.on('gameState', dataString => {
     try{
-      let data = JSON.parse(dataString);
+      let data = dataString;
       if (gameState.settings.debugMode){
         socket.emit('serverInfo', gameState);
       }
@@ -246,7 +256,7 @@ io.on('connection', socket => {
   //RoomInfo
   socket.on('roomInfo', dataString => {
     try{
-      let data = JSON.parse(dataString);
+      let data = dataString;
       if (session.roomID != null){
         socket.emit('roomInfo', getRoomInfo(session.roomID, session.playerName));
       } else {
@@ -264,7 +274,7 @@ io.on('connection', socket => {
   //TODO, if player joins new room and was last in other, delete other
   socket.on('joinRoom', dataString => {
     try{
-      let data = JSON.parse(dataString);
+      let data = dataString;
       let roomID = data.roomID;
       let playerName = data.playerName;
       if (gameState.rooms.some(room => room.id === roomID)) {
@@ -307,7 +317,7 @@ io.on('connection', socket => {
   //TODO, if player joins new room and was last in other, delete other
   socket.on('createRoom', dataString => {
     try{
-      let data = JSON.parse(dataString);
+      let data = dataString;
       let playerName = data.playerName;
       let roomID = createRoom(playerName, session.socketID);
       session.roomID = roomID;
@@ -328,7 +338,7 @@ io.on('connection', socket => {
     //TODO check for blank/invalid category
     //TODO why no room check
     try{
-      let data = JSON.parse(dataString);
+      let data = dataString;
       let roomIndex = getRoomIndex(session.roomID);
       if (gameState.rooms[roomIndex].host == session.playerName) {
         if (gameState.rooms[roomIndex].state == roomStates.lobby) {
@@ -355,7 +365,7 @@ io.on('connection', socket => {
   socket.on('setWordList', dataString => {
     //TODO check for empty/invalid words
     try{
-      let data = JSON.parse(dataString);
+      let data = dataString;
       if (session.roomID != null){
         let roomIndex = getRoomIndex(session.roomID);
         let playerIndex = getPlayerIndex(session.roomID, session.playerName);
@@ -382,7 +392,7 @@ io.on('connection', socket => {
   //Change Name
   socket.on('changeName', dataString => {
     try{
-      let data = JSON.parse(dataString);
+      let data = dataString;
       let newName = data.newName;
       let roomIndex = getRoomIndex(session.roomID);
       let playerIndex = getPlayerIndex(session.roomID, session.playerName);
@@ -416,7 +426,7 @@ io.on('connection', socket => {
   //Change Host
   socket.on('changeHost', dataString => {
     try{
-      let data = JSON.parse(dataString);
+      let data = dataString;
       let newHost = data.newHost;
       let roomIndex = getRoomIndex(session.roomID);
       if (session.roomID != null){
@@ -446,7 +456,7 @@ io.on('connection', socket => {
   //Change Scores
   socket.on('changeScore', dataString => {
     try{
-      let data = JSON.parse(dataString);
+      let data = dataString;
       let subjectPlayer = data.playerName;
       let score = parseInt(data.newScore);
       if (session.roomID != null){
@@ -485,7 +495,7 @@ io.on('connection', socket => {
   //Kick Player
   socket.on('kickPlayer', dataString => {
     try{
-      let data = JSON.parse(dataString);
+      let data = dataString;
       let subjectPlayer = data.playerName;
       if (session.roomID != null){
         if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
@@ -516,7 +526,7 @@ io.on('connection', socket => {
   socket.on('guessArtist', dataString => {
     //TODO check if player has already been guessed
     try{
-      let data = JSON.parse(dataString);
+      let data = dataString;
       let playerGuess = data.playerName;
       if (session.roomID != null){
         let playerGuessIndex = getPlayerIndex(session.roomID, playerGuess);
@@ -568,7 +578,7 @@ io.on('connection', socket => {
   //Disconnected
   socket.on('disconnect', dataString => {
     try{
-      //let data = JSON.parse(dataString);
+      //let data = dataString;
       if (session.roomID != null) {
         log("Disconnected " + session.playerName + " from " + session.roomID + " Session: " + session.socketID);
         playerRemove(session.roomID, session.playerName);
@@ -624,7 +634,7 @@ io.on('connection', socket => {
     try{
       let roomIndex = getRoomIndex(session.roomID);
       if (gameState.rooms[roomIndex].host == session.playerName) {
-        let data = JSON.parse(dataString);
+        let data = dataString;
         let wasCorrect = data.wasCorrect
         //Check - is this actually a bool?
         if (gameState.rooms[roomIndex].state == roomStates.artistGuessed) {
