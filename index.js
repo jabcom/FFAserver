@@ -10,7 +10,6 @@ var io = ior().listen(server, {
   },
   transports: ['websocket','polling']
 })
-server.listen(3000);
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/public/index.html');
 });
@@ -141,8 +140,8 @@ function playerRemove(roomID, playerName) {
       //If player was host, set new host
       gameState.rooms[roomIndex].host = gameState.rooms[roomIndex].players[0].name;
     }
+    sendUpdateRoom(roomID);
   }
-  sendUpdateRoom(roomID);
 }
 
 function newConnection(socket) {
@@ -703,3 +702,4 @@ io.on('connection', socket => {
   });
 
 });
+server.listen(3000);
