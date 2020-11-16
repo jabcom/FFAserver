@@ -411,7 +411,7 @@ io.on('connection', socket => {
     try{
       if (session.roomID != null) {
         let data = dataString;
-        if (data.category == "" || data.category == null) {
+        console.log(data.category);
           let roomIndex = getRoomIndex(session.roomID);
           if (gameState.rooms[roomIndex].host == session.playerName) {
             if (gameState.rooms[roomIndex].state == roomStates.lobby) {
@@ -429,9 +429,6 @@ io.on('connection', socket => {
         } else {
           socket.emit('showError', {type: errorTypes.setCategoryNoInput, message: "Can't set category no input"});
         }
-      } else {
-        socket.emit('showError', {type: errorTypes.setCategoryNotInRoom, message: "Cant set catagory not in room"});
-      }
     } catch(error) {
       log("ERROR 006: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
