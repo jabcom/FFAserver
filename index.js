@@ -284,7 +284,8 @@ io.on('connection', socket => {
       log(socket.id + " asked for server info");
       let serverInfo = gameState.server;
       serverInfo.minWords = gameState.settings.minWords;
-      socket.emit('serverInfo', gameState.server);
+      serverInfo.roomCharList = roomCharList;
+      socket.emit('serverInfo', serverInfo);
     } catch(error) {
       log("ERROR : 001" + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
