@@ -10,9 +10,11 @@ var io = ior().listen(server, {
   },
   transports: ['websocket','polling']
 })
-server.listen(3000);
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/index.html');
+app.get('/rooms', (req, res) => {
+  res.send(gameState.rooms.length.toString());
+});
+app.get('/logs', (req, res) => {
+  res.send(logData);
 });
 const roomCharList = ["B", "C", "D", "F", "G", "H", "J", "K", "M", "N", "P", "R", "S", "T", "W", "X", "Y", "Z"];
 const playerStates = {
@@ -23,8 +25,9 @@ const roomStates = {
 };
 var gameState = {
   server: {
-    version: "0.1.1",
-    name: "testServer"
+    version: "0.2.0",
+    name: "testServer",
+    desc: "This is a test server"
   },
   categorys: ["Cat1", "Cat2", "Cat3"],
   settings: {
@@ -38,14 +41,19 @@ var gameState = {
   },
   rooms: []
 };
+var logData = [];
 
-//WebServer
-//http.listen(3000, () => {
-//  console.log('listening on *:3000');
-//});
+if (process.env.NAME != null) {
+  gameState.server.name = process.env.NAME
+}
+if (process.env.DESC != null) {
+  gameState.server.DESC = process.env.DESC
+}
 
 function log(message) {
-  console.log(new Date().toISOString() + " - " + message);
+  let dateString = new Date().toISOString()
+  console.log(dateString + " - " + message);
+  logData.push(dateString + " - " + message);
 }
 
 function genRoomName() {
@@ -135,14 +143,16 @@ function playerRemove(roomID, playerName) {
   gameState.rooms[roomIndex].players.splice(playerIndex, 1);
   //If room is empty delete room
   if (gameState.rooms[roomIndex].players.length == 0) {
+    log("Room " + roomID + " is empty, removeing");
     gameState.rooms.splice(roomIndex, 1);
   } else {
     if (gameState.rooms[roomIndex].host == playerName) {
       //If player was host, set new host
       gameState.rooms[roomIndex].host = gameState.rooms[roomIndex].players[0].name;
+      log("Room " + roomID + " Host " + playerName + " left, switched to " + gameState.rooms[roomIndex].host);
     }
+    sendUpdateRoom(roomID);
   }
-  sendUpdateRoom(roomID);
 }
 
 function newConnection(socket) {
@@ -176,6 +186,7 @@ function getRoomInfo(roomID, playerName) {
   returnData = {
     id: room.id,
     host: room.host,
+    playerName: playerName,
     state: room.state,
     category: room.category,
     players: [],
@@ -281,6 +292,9 @@ io.on('connection', socket => {
         let room = gameState.rooms.find(element => element.id === roomID);
         if (room.state == roomStates.lobby) {
           if (!room.players.some(player => player.name === playerName)) {
+            if (session.roomID != null) {
+              playerRemove(session.roomID, session.playerName);
+            }
             gameState.rooms[getRoomIndex(roomID)].players.push({
               name: playerName,
               state: 0,
@@ -317,6 +331,9 @@ io.on('connection', socket => {
   //TODO, if player joins new room and was last in other, delete other
   socket.on('createRoom', dataString => {
     try{
+      if (session.roomID != null) {
+        playerRemove(session.roomID, session.playerName);
+      }
       let data = dataString;
       let playerName = data.playerName;
       let roomID = createRoom(playerName, session.socketID);
@@ -703,3 +720,4 @@ io.on('connection', socket => {
   });
 
 });
+server.listen(3000);
