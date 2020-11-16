@@ -10,8 +10,8 @@ var io = ior().listen(server, {
   },
   transports: ['websocket','polling']
 })
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/index.html');
+app.get('/rooms', (req, res) => {
+  res.send(gameState.rooms.length);
 });
 const roomCharList = ["B", "C", "D", "F", "G", "H", "J", "K", "M", "N", "P", "R", "S", "T", "W", "X", "Y", "Z"];
 const playerStates = {
