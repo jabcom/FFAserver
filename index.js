@@ -25,8 +25,9 @@ const roomStates = {
 };
 var gameState = {
   server: {
-    version: "0.1.1",
-    name: "testServer"
+    version: "0.2.0",
+    name: "testServer",
+    desc: "This is a test server"
   },
   categorys: ["Cat1", "Cat2", "Cat3"],
   settings: {
@@ -41,6 +42,13 @@ var gameState = {
   rooms: []
 };
 var logData = [];
+
+if (process.env.NAME != null) {
+  gameState.server.name = process.env.NAME
+}
+if (process.env.DESC != null) {
+  gameState.server.DESC = process.env.DESC
+}
 
 function log(message) {
   let dateString = new Date().toISOString()
