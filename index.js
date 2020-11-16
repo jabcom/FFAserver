@@ -17,6 +17,51 @@ app.get('/logs', (req, res) => {
   res.send(logData);
 });
 const roomCharList = ["B", "C", "D", "F", "G", "H", "J", "K", "M", "N", "P", "R", "S", "T", "W", "X", "Y", "Z"];
+const errorTypes = {
+serverError: 0,
+allRoomsFull : 100,
+roomInfoNotInRoom: 101,
+joinRoomNameTaken: 102,
+joinRoomNotInLobby: 103,
+joinRoomDoesNotExist: 104,
+joinRoomNameEmpty: 105,
+joinRoomRoomIDEmpty: 106,
+createRoomNameEmpty: 107,
+setCategoryNotInRoom: 108,
+setCategoryRoomNotInLobby: 109,
+setCategoryUserNotHost: 110,
+setWordListNotValid: 111,
+setWordListWrongRoomState: 112,
+setWordListNotInRoom: 113,
+setNameInUse: 114,
+setNameIsEmpty: 115,
+setNameNotInRoom: 116,
+changeHostUserNotHost: 117,
+changeHostNotInRoom: 118,
+changeScoreNotValid: 119,
+changeScoreUserDoesNotExist: 120,
+changeScoreUserNotHost: 121,
+changeScoreUserNotInRoom: 122,
+kickPlayerDoesNotExist: 123,
+kickPlayerUserNotHost: 124,
+kickPlayerNotInRoom: 125,
+guessArtistAlreadyGuessed: 216,
+guessArtistDoesNotExist: 127,
+guessArtistNotHost: 128,
+guessArtistWrongRoomState: 129,
+guessArtistNotInRoom: 130,
+startGameNeedMorePlayers: 131,
+startGameNoCategory: 132,
+startGameWrongRoomState: 133,
+startGameUserNotHost: 134,
+startGameNotInRoom: 135,
+guessWordWrongRoomState: 136,
+guessWordNotHost: 137,
+guessWordNotInRoom:138,
+newGameNotHost: 139,
+newGameNotInRoom: 140,
+setCategoryNoInput: 141,
+}
 const playerStates = {
   lobby: 0, addingWords: 1, addedWords: 2
 };
@@ -25,7 +70,7 @@ const roomStates = {
 };
 var gameState = {
   server: {
-    version: "0.2.0",
+    version: "0.2.2",
     name: "testServer",
     desc: "This is a test server"
   },
@@ -99,7 +144,7 @@ function createRoom(playerName, socketID) {
     return roomName;
   } else {
     log("ERROR: Room name list full!");
-    io.to(socketID).emit('showError', {message: "All rooms are taken. Please try again later"});
+    io.to(socketID).emit('showError', {type: errorTypes.allRoomsFull, message: "All rooms are taken. Please try again later"});
   }
 }
 
@@ -240,11 +285,12 @@ io.on('connection', socket => {
       log(socket.id + " asked for server info");
       let serverInfo = gameState.server;
       serverInfo.minWords = gameState.settings.minWords;
-      socket.emit('serverInfo', gameState.server);
+      serverInfo.roomCharList = roomCharList;
+      socket.emit('serverInfo', serverInfo);
     } catch(error) {
       log("ERROR : 001" + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
-        socket.emit('showError', {message: "ERROR 001: " + error.message});
+        socket.emit('showError', {type: errorTypes.serverError, message: "ERROR 001: " + error.message});
       } catch{}
     }
   });
@@ -259,7 +305,7 @@ io.on('connection', socket => {
     } catch(error) {
       log("ERROR 002: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
-        socket.emit('showError', {message: "ERROR 002:" + error.message});
+        socket.emit('showError', {type: errorTypes.serverError, message: "ERROR 002:" + error.message});
       } catch{}
     }
   });
@@ -271,64 +317,70 @@ io.on('connection', socket => {
       if (session.roomID != null){
         socket.emit('roomInfo', getRoomInfo(session.roomID, session.playerName));
       } else {
-        socket.emit('showError', {message: "Can't get room info. User is in a room"});
+        socket.emit('showError', {type: errorTypes.roomInfoNotInRoom, message: "Can't get room info. User is in a room"});
       }
     } catch(error) {
       log("ERROR 003: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
-        socket.emit('showError', {message: "ERROR 003:" + error.message});
+        socket.emit('showError', {type: errorTypes.serverError, message: "ERROR 003:" + error.message});
       } catch{}
     }
   });
 
   //JoinRoom
-  //TODO, if player joins new room and was last in other, delete other
   socket.on('joinRoom', dataString => {
     try{
       let data = dataString;
       let roomID = data.roomID;
       let playerName = data.playerName;
-      if (gameState.rooms.some(room => room.id === roomID)) {
-        let room = gameState.rooms.find(element => element.id === roomID);
-        if (room.state == roomStates.lobby) {
-          if (!room.players.some(player => player.name === playerName)) {
-            if (session.roomID != null) {
-              playerRemove(session.roomID, session.playerName);
-            }
-            gameState.rooms[getRoomIndex(roomID)].players.push({
-              name: playerName,
-              state: 0,
-              wordList: [],
-              score: 0,
-              socketID: session.socketID,
-              guessed: false
-            });
-            session.roomID = roomID;
-            session.playerName = playerName;
-            sendUpdateRoom(roomID);
-            log(playerName + " joined " + roomID);
-          } else {
-            socket.emit('showError', {message: "Name already taken"});
-            log(playerName + " failed to join " + roomID + " Name already taken");
-          }
-        } else {
-          socket.emit('showError', {message: "Room is not in lobby"});
-          log(playerName + " failed to join " + roomID + " Room not in lobby");
-        }
+      if (roomID == "" || roomID == null){
+        socket.emit('showError', {type: errorTypes.joinRoomRoomIDEmpty, message: "No room ID sent"});
       } else {
-        socket.emit('showError', {message: "Room does not exist"});
-        log(playerName + " failed to join " + roomID + " Room does not exist");
+        if (playerName == "" || playerName == null){
+          socket.emit('showError', {type: errorTypes.joinRoomNameEmpty, message: "No player name sent"});
+        } else {
+          if (gameState.rooms.some(room => room.id === roomID)) {
+            let room = gameState.rooms.find(element => element.id === roomID);
+            if (room.state == roomStates.lobby) {
+              if (!room.players.some(player => player.name === playerName)) {
+                if (session.roomID != null) {
+                  playerRemove(session.roomID, session.playerName);
+                }
+                gameState.rooms[getRoomIndex(roomID)].players.push({
+                  name: playerName,
+                  state: 0,
+                  wordList: [],
+                  score: 0,
+                  socketID: session.socketID,
+                  guessed: false
+                });
+                session.roomID = roomID;
+                session.playerName = playerName;
+                sendUpdateRoom(roomID);
+                log(playerName + " joined " + roomID);
+              } else {
+                socket.emit('showError', {type: errorTypes.joinRoomNameTaken, message: "Name already taken"});
+                log(playerName + " failed to join " + roomID + " Name already taken");
+              }
+            } else {
+              socket.emit('showError', {type: errorTypes.joinRoomNotInLobby, message: "Room is not in lobby"});
+              log(playerName + " failed to join " + roomID + " Room not in lobby");
+            }
+          } else {
+            socket.emit('showError', {type: errorTypes.joinRoomDoesNotExist, message: "Room does not exist"});
+            log(playerName + " failed to join " + roomID + " Room does not exist");
+          }
+        }
       }
     } catch(error) {
       log("ERROR 004: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
-        socket.emit('showError', {message: "ERROR 004: " + error.message});
+        socket.emit('showError', {type: errorTypes.serverError, message: "ERROR 004: " + error.message});
       } catch{}
     }
   });
 
   //NewRoom
-  //TODO, if player joins new room and was last in other, delete other
   socket.on('createRoom', dataString => {
     try{
       if (session.roomID != null) {
@@ -336,44 +388,54 @@ io.on('connection', socket => {
       }
       let data = dataString;
       let playerName = data.playerName;
-      let roomID = createRoom(playerName, session.socketID);
-      session.roomID = roomID;
-      session.playerName = playerName;
-      socket.join('Room'+roomID)
-      sendUpdateRoom(roomID);
-      log(playerName + " created " + roomID);
+      if (playerName == "" || playerName == null){
+        socket.emit('showError', {type: errorTypes.createRoomNameEmpty, message: "No player name sent"});
+      } else {
+        let roomID = createRoom(playerName, session.socketID);
+        session.roomID = roomID;
+        session.playerName = playerName;
+        socket.join('Room'+roomID)
+        sendUpdateRoom(roomID);
+        log(playerName + " created " + roomID);
+      }
     } catch(error) {
       log("ERROR 005: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
-        socket.emit('showError', {message: "ERROR 005: " + error.message});
+        socket.emit('showError', {type: errorTypes.serverError, message: "ERROR 005: " + error.message});
       } catch{}
     }
   });
 
   //setCategory
   socket.on('setCategory', dataString => {
-    //TODO check for blank/invalid category
-    //TODO why no room check
     try{
-      let data = dataString;
-      let roomIndex = getRoomIndex(session.roomID);
-      if (gameState.rooms[roomIndex].host == session.playerName) {
-        if (gameState.rooms[roomIndex].state == roomStates.lobby) {
-          gameState.rooms[roomIndex].category = data.category;
-          log(session.playerName + " in room " + session.roomID + " set category to " + data.category);
-          sendUpdateRoom(session.roomID);
+      if (session.roomID != null) {
+        let data = dataString;
+        if (data.category == "" || data.category == null) {
+          let roomIndex = getRoomIndex(session.roomID);
+          if (gameState.rooms[roomIndex].host == session.playerName) {
+            if (gameState.rooms[roomIndex].state == roomStates.lobby) {
+              gameState.rooms[roomIndex].category = data.category;
+              log(session.playerName + " in room " + session.roomID + " set category to " + data.category);
+              sendUpdateRoom(session.roomID);
+            } else {
+              socket.emit('showError', {type: errorTypes.setCatagoryRoomNotInLobby, message: "Room is not in state lobby"});
+              log(session.playerName + " in room " + session.roomID + " failed to set category to " + data.category + " Room not in lobby");
+            }
+          } else {
+            socket.emit('showError', {type: errorTypes.setCategoryUserNotHost, message: "User is not host. Not allowed to change category"});
+            log(session.playerName + " in room " + session.roomID + " failed to set category to " + data.category + " User not host");
+          }
         } else {
-          socket.emit('showError', {message: "Room is not in state lobby"});
-          log(session.playerName + " in room " + session.roomID + " failed tp set category to " + data.category + " Room not in lobby");
+          socket.emit('showError', {type: errorTypes.setCategoryNoInput, message: "Can't set category no input"});
         }
       } else {
-        socket.emit('showError', {message: "User is not host. Not allowed to change category"});
-        log(session.playerName + " in room " + session.roomID + " failed to set category to " + data.category + " User not host");
+        socket.emit('showError', {type: errorTypes.setCategoryNotInRoom, message: "Cant set catagory not in room"});
       }
     } catch(error) {
       log("ERROR 006: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
-        socket.emit('showError', {message: "ERROR 006: " + error.message});
+        socket.emit('showError', {type: errorTypes.serverError, message: "ERROR 006: " + error.message});
       } catch{}
     }
   });
@@ -384,24 +446,38 @@ io.on('connection', socket => {
     try{
       let data = dataString;
       if (session.roomID != null){
-        let roomIndex = getRoomIndex(session.roomID);
-        let playerIndex = getPlayerIndex(session.roomID, session.playerName);
-        if (gameState.rooms[roomIndex].state == roomStates.addingWords) {
-          gameState.rooms[roomIndex].players[playerIndex].wordList = data.list.slice(0, gameState.settings.minWords);
-          updateReadyWordStatus(session.roomID, session.playerName);
-          sendUpdateRoom(session.roomID);
-          log(session.playerName + " in room " + session.roomID + " updated word list");
+        let wordValid = true;
+        if (data.wordList == null || data.wordList.length == 0) {
+          wordValid = false;
         } else {
-          socket.emit('showError', {message: "Room is not in state Adding Words"});
-          log(session.playerName + " in room " + session.roomID + " failed to add words Room in wrong state");
+          for (let i = 0; i < data.wordList.length; i++) {
+            if (data.wordList[i] == "" || data.wordList[i] == null) {
+              wordValid = false;
+            }
+          }
+        }
+        if(wordValid) {
+          let roomIndex = getRoomIndex(session.roomID);
+          let playerIndex = getPlayerIndex(session.roomID, session.playerName);
+          if (gameState.rooms[roomIndex].state == roomStates.addingWords) {
+            gameState.rooms[roomIndex].players[playerIndex].wordList = data.list.slice(0, gameState.settings.minWords);
+            updateReadyWordStatus(session.roomID, session.playerName);
+            sendUpdateRoom(session.roomID);
+            log(session.playerName + " in room " + session.roomID + " updated word list");
+          } else {
+            socket.emit('showError', {type: errorTypes.setWordListWrongRoomState, message: "Room is not in state Adding Words"});
+            log(session.playerName + " in room " + session.roomID + " failed to add words Room in wrong state");
+          }
+        } else {
+          socket.emit('showError', {type: errorTypes.setWordListNotValid, message: "Word list not valid"});
         }
       } else {
-        socket.emit('showError', {message: "Can't set word list. User is not in a room"});
+        socket.emit('showError', {type: errorTypes.setWordListNotInRoom, message: "Can't set word list. User is not in a room"});
       }
     } catch(error) {
       log("ERROR 007: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
-        socket.emit('showError', {message: "ERROR 007: " + error.message});
+        socket.emit('showError', {type: errorTypes.serverError, message: "ERROR 007: " + error.message});
       } catch{}
     }
   });
@@ -414,28 +490,32 @@ io.on('connection', socket => {
       let roomIndex = getRoomIndex(session.roomID);
       let playerIndex = getPlayerIndex(session.roomID, session.playerName);
       if (session.roomID != null){
-        if (gameState.rooms[roomIndex].players.some(player => player.name === newName)) {
-          socket.emit('showError', {message: "Name already in use"});
+        if (newName == "" || newName == null) {
+          socket.emit('showError', {type: errorTypes.setNameIsEmpty, message: "Name invalid"});
         } else {
-          gameState.rooms[roomIndex].players[playerIndex].name = newName
-          let oldName = session.playerName;
-          session.playerName = newName;
-          if (gameState.rooms[roomIndex].host == oldName) {
-            gameState.rooms[roomIndex].host = newName
+          if (gameState.rooms[roomIndex].players.some(player => player.name === newName)) {
+            socket.emit('showError', {type: errorTypes.setNameInUse, message: "Name already in use"});
+          } else {
+            gameState.rooms[roomIndex].players[playerIndex].name = newName
+            let oldName = session.playerName;
+            session.playerName = newName;
+            if (gameState.rooms[roomIndex].host == oldName) {
+              gameState.rooms[roomIndex].host = newName
+            }
+            if (gameState.rooms[roomIndex].lastArtist == oldName) {
+              gameState.rooms[roomIndex].lastArtist = newName
+            }
+            log(oldName + " in room " + session.roomID + " changed name to " + newName);
+            sendUpdateRoom(session.roomID);
           }
-          if (gameState.rooms[roomIndex].lastArtist == oldName) {
-            gameState.rooms[roomIndex].lastArtist = newName
-          }
-          log(oldName + " in room " + session.roomID + " changed name to " + newName);
-          sendUpdateRoom(session.roomID);
         }
       } else {
-        socket.emit('showError', {message: "Can't change name. User is in a room"});
+        socket.emit('showError', {type: errorTypes.setNameNotInRoom, message: "Can't change name. User is not in a room"});
       }
     } catch(error) {
       log("ERROR 008: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
-        socket.emit('showError', {message: "ERROR 008: " + error.message});
+        socket.emit('showError', {type: errorTypes.serverError, message: "ERROR 008: " + error.message});
       } catch{}
     }
   });
@@ -456,16 +536,16 @@ io.on('connection', socket => {
             log(session.playerName + " in room " + session.roomID + " changed host to " + newHost);
           }
         } else {
-          socket.emit('showError', {message: "User is not host"});
+          socket.emit('showError', {type: errorTypes.changeHostUserNotHost, message: "User is not host"});
           log(session.playerName + " in room " + session.roomID + " failed to change host to " + newHost + "User not host");
         }
       } else {
-        socket.emit('showError', {message: "Can't change host User is in a room"});
+        socket.emit('showError', {type: errorTypes.changeHostNotInRoom, message: "Can't change host User is in a room"});
       }
     } catch(error) {
       log("ERROR 009: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
-        socket.emit('showError', {message: "ERROR 009: " + error.message});
+        socket.emit('showError', {type: errorTypes.serverError, message: "ERROR 009: " + error.message});
       } catch{}
     }
   });
@@ -487,24 +567,24 @@ io.on('connection', socket => {
               sendUpdateRoom(session.roomID);
               log(session.playerName + " in room " + session.roomID + " changed score: " + subjectPlayer + "->" + score);
             } else {
-              socket.emit('showError', {message: "Score must be a positive interger"});
+              socket.emit('showError', {type: errorTypes.changeScoreNotValid, message: "Score must be a positive interger"});
               log(session.playerName + " in room " + session.roomID + " failed to changed score: " + subjectPlayer + "->" + score + " Score not positive interger");
             }
           } else {
-            socket.emit('showError', {message: "Player does not exist"});
+            socket.emit('showError', {type: errorTypes.changeScoreUserDoesNotExist, message: "Player does not exist"});
             log(session.playerName + " in room " + session.roomID + " failed to changed score: " + subjectPlayer + "->" + score + "Player Subject does not exist");
           }
         } else {
-          socket.emit('showError', {message: "User is not host"});
+          socket.emit('showError', {type: errorTypes.changeScoreUserNotHost, message: "User is not host"});
           log(session.playerName + " in room " + session.roomID + " failed to changed score: " + " subjectPlayer->" + score + "Player is not host");
         }
       } else {
-        socket.emit('showError', {message: "Can't change Score User is in a room"});
+        socket.emit('showError', {type: errorTypes.changeScoreUserNotInRoom, message: "Can't change Score User is not in a room"});
       }
     } catch(error) {
       log("ERROR 010: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
-        socket.emit('showError', {message: "ERROR 010: " + error.message});
+        socket.emit('showError', {type: errorTypes.serverError, message: "ERROR 010: " + error.message});
       } catch{}
     }
   });
@@ -521,20 +601,20 @@ io.on('connection', socket => {
             sendUpdateRoom(session.roomID);
             log(session.playerName + " in room " + session.roomID + " kicked " + subjectPlayer);
           } else {
-            socket.emit('showError', {message: "Player does not exist"});
+            socket.emit('showError', {type: errorTypes.kickPlayerDoesNotExist, message: "Player does not exist"});
             log(session.playerName + " in room " + session.roomID + " failed to kick " + subjectPlayer + " Player does not exist");
           }
         } else {
-          socket.emit('showError', {message: "User is not host"});
+          socket.emit('showError', {type: errorTypes.kickPlayerUserNotHost, message: "User is not host"});
           log(session.playerName + " in room " + session.roomID + " failed to kick " + subjectPlayer + "Player not host");
         }
       } else {
-        socket.emit('showError', {message: "Can't change host User is in a room"});
+        socket.emit('showError', {type: errorTypes.kickPlayerNotInRoom, message: "Can't change host User is in a room"});
       }
     } catch(error) {
       log("ERROR 011: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
-        socket.emit('showError', {message: "ERROR 011: " + error.message});
+        socket.emit('showError', {type: errorTypes.serverError, message: "ERROR 011: " + error.message});
       } catch{}
     }
   });
@@ -551,43 +631,46 @@ io.on('connection', socket => {
         if (gameState.rooms[roomIndex].state == roomStates.playingGame) {
           if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
             if (gameState.rooms[roomIndex].players.some(player => player.name === playerGuess)) {
-              if (gameState.rooms[roomIndex].artist == playerGuess) {
-                //was artist
-                gameState.rooms[roomIndex].state = roomStates.artistGuessed;
-                for(let i = 0; i < gameState.rooms[roomIndex].players.length; i++) {
-                  if (gameState.rooms[roomIndex].players[i].name != playerGuess) {
-                    gameState.rooms[roomIndex].players[i].score += gameState.settings.scores.artistDiscovered;
-                  }
-                }
-                sendUpdateRoom(session.roomID);
-                log(session.playerName + " in room " + session.roomID + " Correctly guessed " + playerGuess + " Was the artist");
-              } else {
-                //was not artist
-                gameState.rooms[roomIndex].players[getPlayerIndex(roomID, gameState.rooms[roomIndex].artist)].score += gameState.settings.scores.artistEvaded;
-                gameState.rooms[roomID].players[playerGuessIndex].guessed = true;
-                log(session.playerName + " in room " + session.roomID + " Incorrectly guessed " + playerGuess + " Was the artist");
-                if (getNonGuessedLeft(roomID) < 2) {
+              if (!gameState.rooms[roomIndex].players.some(player => player.name === playerGuess).guessed) {
+                if (gameState.rooms[roomIndex].artist == playerGuess) {
                   gameState.rooms[roomIndex].state = roomStates.artistGuessed;
-                  log(session.playerName + " in room " + session.roomID + " Incorrectly guessed " + playerGuess + " Was the artist. Game progressed as only artist left unguessed");
+                  for(let i = 0; i < gameState.rooms[roomIndex].players.length; i++) {
+                    if (gameState.rooms[roomIndex].players[i].name != playerGuess) {
+                      gameState.rooms[roomIndex].players[i].score += gameState.settings.scores.artistDiscovered;
+                    }
+                  }
+                  sendUpdateRoom(session.roomID);
+                  log(session.playerName + " in room " + session.roomID + " Correctly guessed " + playerGuess + " Was the artist");
+                } else {
+                  //was not artist
+                  gameState.rooms[roomIndex].players[getPlayerIndex(roomID, gameState.rooms[roomIndex].artist)].score += gameState.settings.scores.artistEvaded;
+                  gameState.rooms[roomID].players[playerGuessIndex].guessed = true;
+                  log(session.playerName + " in room " + session.roomID + " Incorrectly guessed " + playerGuess + " Was the artist");
+                  if (getNonGuessedLeft(roomID) < 2) {
+                    gameState.rooms[roomIndex].state = roomStates.artistGuessed;
+                    log(session.playerName + " in room " + session.roomID + " Incorrectly guessed " + playerGuess + " Was the artist. Game progressed as only artist left unguessed");
+                  }
+                  sendUpdateRoom(session.roomID);
                 }
-                sendUpdateRoom(session.roomID);
+              } else {
+                socket.emit('showError', {type: errorTypes.guessArtistAlreadyGuessed, message: "Already guessed this player"});
               }
             } else {
-              socket.emit('showError', {message: "Player does not exist"});
+              socket.emit('showError', {type: errorTypes.guessArtistDoesNotExist, message: "Player does not exist"});
             }
           } else {
-            socket.emit('showError', {message: "User is not host"});
+            socket.emit('showError', {type: errorTypes.guessArtistNotHost, message: "User is not host"});
           }
         } else {
-          socket.emit('showError', {message: "Room not in correct state"});
+          socket.emit('showError', {type: errorTypes.guessArtistWrongRoomState, message: "Room not in correct state"});
         }
       } else {
-        socket.emit('showError', {message: "Can't change host User is in a room"});
+        socket.emit('showError', {type: errorTypes.guessArtistNotInRoom, message: "Can't guess User is in a room"});
       }
     } catch(error) {
       log("ERROR 012: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
-        socket.emit('showError', {message: "ERROR 012: " + error.message});
+        socket.emit('showError', {type: errorTypes.serverError, message: "ERROR 012: " + error.message});
       } catch{}
     }
   });
@@ -605,116 +688,128 @@ io.on('connection', socket => {
     } catch(error) {
       log("ERROR 013: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
-        socket.emit('showError', {message: "ERROR 013: " + error.message});
+        socket.emit('showError', {type: errorTypes.serverError, message: "ERROR 013: " + error.message});
       } catch{}
     }
   });
 
   socket.on('startGame', dataString => {
     try{
-      let roomIndex = getRoomIndex(session.roomID);
-      if (gameState.rooms[roomIndex].host == session.playerName) {
-        if (gameState.rooms[roomIndex].state == roomStates.lobby) {
-          if (gameState.rooms[roomIndex].category != "") {
-            if (gameState.rooms[roomIndex].players.length > 1) {
-              gameState.rooms[roomIndex].state = roomStates.addingWords;
-              for (let i = 0; i < gameState.rooms[roomIndex].players.length; i++) {
-                gameState.rooms[roomIndex].players[i].state = playerStates.addingWords;
+      if (session.roomID != null){
+        let roomIndex = getRoomIndex(session.roomID);
+        if (gameState.rooms[roomIndex].host == session.playerName) {
+          if (gameState.rooms[roomIndex].state == roomStates.lobby) {
+            if (gameState.rooms[roomIndex].category != "") {
+              if (gameState.rooms[roomIndex].players.length > 1) {
+                gameState.rooms[roomIndex].state = roomStates.addingWords;
+                for (let i = 0; i < gameState.rooms[roomIndex].players.length; i++) {
+                  gameState.rooms[roomIndex].players[i].state = playerStates.addingWords;
+                }
+                sendUpdateRoom(session.roomID);
+                log(session.playerName + " in room " + session.roomID + " Started Game");
+              } else {
+                socket.emit('showError', {type: errorTypes.startGameNeedMorePlayers, message: "Need more players"});
+                log(session.playerName + " in room " + session.roomID + " Could not start game. Not enough players");
               }
-              sendUpdateRoom(session.roomID);
-              log(session.playerName + " in room " + session.roomID + " Started Game");
             } else {
-              socket.emit('showError', {message: "Need more players"});
-              log(session.playerName + " in room " + session.roomID + " Could not start game. Not enough players");
+              socket.emit('showError', {type: errorTypes.startGameNoCategory, message: "Category has not been set"});
+              log(session.playerName + " in room " + session.roomID + " Could not start game. Category not set");
             }
           } else {
-            socket.emit('showError', {message: "Category has not been set"});
-            log(session.playerName + " in room " + session.roomID + " Could not start game. Category not set");
+            socket.emit('showError', {type: errorTypes.startGameWrongRoomState, message: "Room is not in correct state"});
+            log(session.playerName + " in room " + session.roomID + " Could not start game. Room is not in lobby");
           }
         } else {
-          socket.emit('showError', {message: "Room is not in state lobby"});
-          log(session.playerName + " in room " + session.roomID + " Could not start game. Room is not in lobby");
+          socket.emit('showError', {type: errorTypes.startGameUserNotHost, message: "User is not host. Not allowed to start game"});
+          log(session.playerName + " in room " + session.roomID + " Could not start game. Player is not host");
         }
-      } else {
-        socket.emit('showError', {message: "User is not host. Not allowed to start game"});
-        log(session.playerName + " in room " + session.roomID + " Could not start game. Player is not host");
-      }
+        } else {
+          socket.emit('showError', {type: errorTypes.startGameNotInRoom, message: "Can't start game not in room"});
+        }
     } catch(error) {
       log("ERROR 014: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
-        socket.emit('showError', {message: "ERROR 014: " + error.message});
+        socket.emit('showError', {type: errorTypes.serverError, message: "ERROR 014: " + error.message});
       } catch{}
     }
   });
 
   socket.on('guessWord', dataString => {
     try{
-      let roomIndex = getRoomIndex(session.roomID);
-      if (gameState.rooms[roomIndex].host == session.playerName) {
-        let data = dataString;
-        let wasCorrect = data.wasCorrect
-        //Check - is this actually a bool?
-        if (gameState.rooms[roomIndex].state == roomStates.artistGuessed) {
-          gameState.rooms[roomIndex].state = roomStates.wordGuessed;
-          if (wasCorrect) {
-            gameState.rooms[roomIndex].players[getPlayerIndex(roomID, gameState.rooms[roomIndex].artist)].score += gameState.settings.scores.artistGuessedWord;
-            log(session.playerName + " in room " + session.roomID + " Artist correctly guessed word");
+      if (session.roomID != null){
+        let roomIndex = getRoomIndex(session.roomID);
+        if (gameState.rooms[roomIndex].host == session.playerName) {
+          let data = dataString;
+          let wasCorrect = data.wasCorrect
+          //Check - is this actually a bool?
+          if (gameState.rooms[roomIndex].state == roomStates.artistGuessed) {
+            gameState.rooms[roomIndex].state = roomStates.wordGuessed;
+            if (wasCorrect) {
+              gameState.rooms[roomIndex].players[getPlayerIndex(roomID, gameState.rooms[roomIndex].artist)].score += gameState.settings.scores.artistGuessedWord;
+              log(session.playerName + " in room " + session.roomID + " Artist correctly guessed word");
+            } else {
+              log(session.playerName + " in room " + session.roomID + " Artist incorrectly guessed word");
+            }
+            sendUpdateRoom(session.roomID);
           } else {
-            log(session.playerName + " in room " + session.roomID + " Artist incorrectly guessed word");
+            socket.emit('showError', {type: errorTypes.guessWordWrongRoomState, message: "Room is not in state artist guessed"});
+            log(session.playerName + " in room " + session.roomID + " Artist could not guess word. Room in wrong state");
           }
-          sendUpdateRoom(session.roomID);
         } else {
-          socket.emit('showError', {message: "Room is not in state artist guessed"});
-          log(session.playerName + " in room " + session.roomID + " Artist could not guess word. Room in wrong state");
+          socket.emit('showError', {type: errorTypes.guessWordNotHost, message: "User is not host"});
+          log(session.playerName + " in room " + session.roomID + " Artist could not guess word. User is not host");
         }
       } else {
-        socket.emit('showError', {message: "User is not host"});
-        log(session.playerName + " in room " + session.roomID + " Artist could not guess word. User is not host");
+        socket.emit('showError', {type: errorTypes.guessWordNotInRoom, message: "Can't guess not in room"});
       }
     } catch(error) {
       log("ERROR 015: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
-        socket.emit('showError', {message: "ERROR 015: " + error.message});
+        socket.emit('showError', {type: errorTypes.serverError, message: "ERROR 015: " + error.message});
       } catch{}
     }
   });
 
   socket.on('newGame', dataString => {
     try{
-      let roomIndex = getRoomIndex(session.roomID);
-      if (gameState.rooms[roomIndex].host == session.playerName) {
-        let oldRoom = gameState.rooms[roomIndex];
-        let oldPlayers = gameState.rooms[roomIndex].players;
-        let newRoom = {
-          id: oldRoom.id,
-          state: 0,
-          word: "",
-          category: "",
-          artist: "",
-          lastArtist: oldRoom.artist,
-          host: oldRoom.host,
-          players: []
-        }
-        for (let i = 0; i < oldRoom.players.length; i++) {
-          newRoom.players.push({
-            name: oldRoom.players[i].name,
+      if (session.roomID != null){
+        let roomIndex = getRoomIndex(session.roomID);
+        if (gameState.rooms[roomIndex].host == session.playerName) {
+          let oldRoom = gameState.rooms[roomIndex];
+          let oldPlayers = gameState.rooms[roomIndex].players;
+          let newRoom = {
+            id: oldRoom.id,
             state: 0,
-            wordList: [],
-            score: oldRoom.players[i].score,
-            socketID: oldRoom.players[i].socketID,
-            guessed: false
-          })
+            word: "",
+            category: "",
+            artist: "",
+            lastArtist: oldRoom.artist,
+            host: oldRoom.host,
+            players: []
+          }
+          for (let i = 0; i < oldRoom.players.length; i++) {
+            newRoom.players.push({
+              name: oldRoom.players[i].name,
+              state: 0,
+              wordList: [],
+              score: oldRoom.players[i].score,
+              socketID: oldRoom.players[i].socketID,
+              guessed: false
+            })
+          }
+          sendUpdateRoom(session.roomID);
+          log(session.playerName + " in room " + session.roomID + " Room Reset");
+        } else {
+          socket.emit('showError', {type: errorTypes.newGameNotHost, message: "User is not host. Not allowed to restart game"});
+          log(session.playerName + " in room " + session.roomID + " Could not reset room. Player is not host");
         }
-        sendUpdateRoom(session.roomID);
-        log(session.playerName + " in room " + session.roomID + " Room Reset");
       } else {
-        socket.emit('showError', {message: "User is not host. Not allowed to restart game"});
-        log(session.playerName + " in room " + session.roomID + " Could not reset room. Player is not host");
+        socket.emit('showError', {type: errorTypes.newGameNotInRoom, message: "Can't restart game, not in room"});
       }
     } catch(error) {
       log("ERROR 016: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
-        socket.emit('showError', {message: "ERROR 016: " + error.message});
+        socket.emit('showError', {type: errorTypes.serverError, message: "ERROR 016: " + error.message});
       } catch{}
     }
   });
