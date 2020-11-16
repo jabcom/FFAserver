@@ -79,7 +79,13 @@ var gameState = {
     name: "testServer",
     desc: "This is a test server"
   },
-  categorys: ["Cat1", "Cat2", "Cat3"],
+  categorys: ["Songs", "Fruit", "Junk Food", "Book Titles", "Pets", "Jungle Animals", "Video Games",
+  "Plants", "Seasonal Hoilidays", "Superstitions", "Countries", "Emotions", "Murder Weapons",
+  "Body Parts", "Birds", "Vehicles", "Celebrity Chefs", "Letters of the Alphabet",
+  "Famous Logos", "Mythical Creatures", "Hollywood Actors", "Fictional Characters",
+  "Monsters", "Game Participants", "Numbers", "Weather", "Shoes", "School Subjects",
+  "Sports", "Ocean Creatures", "Hair Styles", "Diseases", "The Royal Family",
+  "Professions", "Musicians", "Insects", "Stationary", "Religion", "Vegtables"],
   settings: {
     minWords: 3,
     debugMode: false,
