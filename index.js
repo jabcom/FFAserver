@@ -16,6 +16,11 @@ app.get('/rooms', (req, res) => {
 app.get('/logs', (req, res) => {
   res.send(logData);
 });
+app.get('/gameState', (req, res) => {
+  if (gameState.settings.debugMode) {
+    res.send(gameState);
+  }
+});
 const roomCharList = ["B", "C", "D", "F", "G", "H", "J", "K", "M", "N", "P", "R", "S", "T", "W", "X", "Y", "Z"];
 const errorTypes = {
 serverError: 0,
@@ -70,7 +75,7 @@ const roomStates = {
 };
 var gameState = {
   server: {
-    version: "0.2.2",
+    version: "0.2.3",
     name: "testServer",
     desc: "This is a test server"
   },
@@ -153,13 +158,13 @@ function updateReadyWordStatus(roomID, playerName) {
   let roomIndex = getRoomIndex(roomID);
   let playerIndex = getPlayerIndex(roomID, playerName)
   player = gameState.rooms[roomIndex].players[playerIndex];
-  if (player.wordList.length < gameState.settings.minWords){
+  if (player.wordList.length == gameState.settings.minWords){
     gameState.rooms[roomIndex].players[playerIndex].state = playerStates.addedWords;
   } else {
     gameState.rooms[roomIndex].players[playerIndex].state = playerStates.addingWords;
   }
   //Set Server
-  if (!gameState.rooms[roomIndex].players.some(player => player.status === playerStates.addingWords)) {
+  if (!gameState.rooms[roomIndex].players.some(player => player.state == playerStates.addingWords)) {
     gameState.rooms[roomIndex].state = roomStates.playingGame;
     let totalWordList = []
     for (let i = 0; i < gameState.rooms[roomIndex].players.length; i++) {
@@ -411,7 +416,6 @@ io.on('connection', socket => {
     try{
       if (session.roomID != null) {
         let data = dataString;
-        console.log(data.category);
           let roomIndex = getRoomIndex(session.roomID);
           if (gameState.rooms[roomIndex].host == session.playerName) {
             if (gameState.rooms[roomIndex].state == roomStates.lobby) {
@@ -457,7 +461,7 @@ io.on('connection', socket => {
           let roomIndex = getRoomIndex(session.roomID);
           let playerIndex = getPlayerIndex(session.roomID, session.playerName);
           if (gameState.rooms[roomIndex].state == roomStates.addingWords) {
-            gameState.rooms[roomIndex].players[playerIndex].wordList = data.list.slice(0, gameState.settings.minWords);
+            gameState.rooms[roomIndex].players[playerIndex].wordList = data.wordList.slice(0, gameState.settings.minWords);
             updateReadyWordStatus(session.roomID, session.playerName);
             sendUpdateRoom(session.roomID);
             log(session.playerName + " in room " + session.roomID + " updated word list");
