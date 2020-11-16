@@ -135,11 +135,13 @@ function playerRemove(roomID, playerName) {
   gameState.rooms[roomIndex].players.splice(playerIndex, 1);
   //If room is empty delete room
   if (gameState.rooms[roomIndex].players.length == 0) {
+    log("Room " + roomID + " is empty, removeing");
     gameState.rooms.splice(roomIndex, 1);
   } else {
     if (gameState.rooms[roomIndex].host == playerName) {
       //If player was host, set new host
       gameState.rooms[roomIndex].host = gameState.rooms[roomIndex].players[0].name;
+      log("Room " + roomID + " Host " + playerName + " left, switched to " + gameState.rooms[roomIndex].host);
     }
     sendUpdateRoom(roomID);
   }
@@ -282,6 +284,9 @@ io.on('connection', socket => {
         let room = gameState.rooms.find(element => element.id === roomID);
         if (room.state == roomStates.lobby) {
           if (!room.players.some(player => player.name === playerName)) {
+            if (session.roomID != null) {
+              playerRemove(session.roomID, session.playerName);
+            }
             gameState.rooms[getRoomIndex(roomID)].players.push({
               name: playerName,
               state: 0,
@@ -318,6 +323,9 @@ io.on('connection', socket => {
   //TODO, if player joins new room and was last in other, delete other
   socket.on('createRoom', dataString => {
     try{
+      if (session.roomID != null) {
+        playerRemove(session.roomID, session.playerName);
+      }
       let data = dataString;
       let playerName = data.playerName;
       let roomID = createRoom(playerName, session.socketID);
