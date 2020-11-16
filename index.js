@@ -11,7 +11,7 @@ var io = ior().listen(server, {
   transports: ['websocket','polling']
 })
 app.get('/rooms', (req, res) => {
-  res.send(gameState.rooms.length);
+  res.send(gameState.rooms.length.toString());
 });
 app.get('/logs', (req, res) => {
   res.send(logData);
