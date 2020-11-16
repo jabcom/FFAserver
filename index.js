@@ -13,6 +13,9 @@ var io = ior().listen(server, {
 app.get('/rooms', (req, res) => {
   res.send(gameState.rooms.length);
 });
+app.get('/logs', (req, res) => {
+  res.send(logData);
+});
 const roomCharList = ["B", "C", "D", "F", "G", "H", "J", "K", "M", "N", "P", "R", "S", "T", "W", "X", "Y", "Z"];
 const playerStates = {
   lobby: 0, addingWords: 1, addedWords: 2
@@ -37,14 +40,12 @@ var gameState = {
   },
   rooms: []
 };
-
-//WebServer
-//http.listen(3000, () => {
-//  console.log('listening on *:3000');
-//});
+var logData = [];
 
 function log(message) {
-  console.log(new Date().toISOString() + " - " + message);
+  let dateString = new Date().toISOString()
+  console.log(dateString + " - " + message);
+  logData.push(dateString + " - " + message);
 }
 
 function genRoomName() {
@@ -175,6 +176,7 @@ function getRoomInfo(roomID, playerName) {
   returnData = {
     id: room.id,
     host: room.host,
+    playerName: playerName,
     state: room.state,
     category: room.category,
     players: [],
