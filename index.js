@@ -75,7 +75,7 @@ const roomStates = {
 };
 var gameState = {
   server: {
-    version: "0.2.4",
+    version: "0.2.6",
     name: "testServer",
     desc: "Default server. From https://github.com/jabcom/FFAserver"
   },
@@ -174,9 +174,11 @@ function updateReadyWordStatus(roomID, playerName) {
     gameState.rooms[roomIndex].state = roomStates.playingGame;
     let totalWordList = []
     for (let i = 0; i < gameState.rooms[roomIndex].players.length; i++) {
-      totalWordList.concat(gameState.rooms[roomIndex].players[i].wordList);
+      let oldArray = totalWordList;
+      totalWordList = oldArray.concat(gameState.rooms[roomIndex].players[i].wordList);
     }
     gameState.rooms[roomIndex].word = totalWordList[Math.floor(Math.random() * totalWordList.length)]
+    gameState.rooms[roomIndex].artist = gameState.rooms[roomIndex].players[Math.floor(Math.random() * gameState.rooms[roomIndex].players.length)].name;
   }
 }
 
@@ -231,7 +233,7 @@ function getNonGuessedLeft(roomID) {
   let playersLeft = 0;
   for (let i = 0; i < room.players.length; i++) {
     if (!room.players[i].guessed) {
-      playersLeft =+ 1;
+      playersLeft += 1;
     }
   }
   return playersLeft;
@@ -249,13 +251,17 @@ function getRoomInfo(roomID, playerName) {
     lastArtist: room.lastArtist,
     minWords: gameState.settings.minWords
   }
-  if (playerName != room.artist) {
+  if ((playerName != room.artist) || (room.state >= roomStates.wordGuessed)) {
     returnData.word = room.word;
   } else {
     returnData.word = "";
   }
-  if ((playerName != room.artist) || (room.state >= roomStates.artistGuessed)) {
-    returnData.artist = "";
+  if (playerName != room.artist) {
+    if (room.state >= roomStates.artistGuessed) {
+      returnData.artist = room.artist;
+    } else {
+      returnData.artist = "";
+    }
   } else {
     returnData.artist = room.artist;
   }
@@ -263,10 +269,14 @@ function getRoomInfo(roomID, playerName) {
     returnData.categorys = gameState.categorys;
   }
   for (let player of room.players) {
+    let score = player.score;
+    if (room.state == roomStates.playingGame) {
+      score = "hidden"
+    }
     playerData = {
       name: player.name,
       state: player.state,
-      score: player.score,
+      score: score,
       wordCount: player.wordList.length,
       guessed: player.guessed
     };
@@ -649,10 +659,10 @@ io.on('connection', socket => {
                   log(session.playerName + " in room " + session.roomID + " Correctly guessed " + playerGuess + " Was the artist");
                 } else {
                   //was not artist
-                  gameState.rooms[roomIndex].players[getPlayerIndex(roomID, gameState.rooms[roomIndex].artist)].score += gameState.settings.scores.artistEvaded;
-                  gameState.rooms[roomID].players[playerGuessIndex].guessed = true;
+                  gameState.rooms[roomIndex].players[getPlayerIndex(session.roomID, gameState.rooms[roomIndex].artist)].score += gameState.settings.scores.artistEvaded;
+                  gameState.rooms[roomIndex].players[playerGuessIndex].guessed = true;
                   log(session.playerName + " in room " + session.roomID + " Incorrectly guessed " + playerGuess + " Was the artist");
-                  if (getNonGuessedLeft(roomID) < 2) {
+                  if (getNonGuessedLeft(session.roomID) < 2) {
                     gameState.rooms[roomIndex].state = roomStates.artistGuessed;
                     log(session.playerName + " in room " + session.roomID + " Incorrectly guessed " + playerGuess + " Was the artist. Game progressed as only artist left unguessed");
                   }
@@ -688,11 +698,8 @@ io.on('connection', socket => {
         let roomIndex = getRoomIndex(session.roomID);
         if (gameState.rooms[roomIndex].state == roomStates.playingGame) {
           if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
-            for(let i = 0; i < gameState.rooms[roomIndex].players.length; i++) {
-              if (gameState.rooms[roomIndex].players[i].name != gameState.rooms[roomIndex].artist) {
-                gameState.rooms[roomIndex].players[i].score += gameState.settings.scores.artistEvaded;
-              }
-            }
+            gameState.rooms[roomIndex].players[getPlayerIndex(session.roomID, gameState.rooms[roomIndex].artist)].score += gameState.settings.scores.artistEvaded;
+            sendUpdateRoom(session.roomID);
           } else {
             socket.emit('showError', {type: errorTypes.guessArtistNotHost, message: "User is not host"});
           }
@@ -780,7 +787,7 @@ io.on('connection', socket => {
           if (gameState.rooms[roomIndex].state == roomStates.artistGuessed) {
             gameState.rooms[roomIndex].state = roomStates.wordGuessed;
             if (wasCorrect) {
-              gameState.rooms[roomIndex].players[getPlayerIndex(roomID, gameState.rooms[roomIndex].artist)].score += gameState.settings.scores.artistGuessedWord;
+              gameState.rooms[roomIndex].players[getPlayerIndex(session.roomID, gameState.rooms[roomIndex].artist)].score += gameState.settings.scores.artistGuessedWord;
               log(session.playerName + " in room " + session.roomID + " Artist correctly guessed word");
             } else {
               log(session.playerName + " in room " + session.roomID + " Artist incorrectly guessed word");
@@ -826,18 +833,19 @@ io.on('connection', socket => {
 
           for (let i = 0; i < oldRoom.players.length; i++) {
             let score = 0;
-            if (data.resetScores == true) {
+            if (data.keepScores == true) {
               score = oldRoom.players[i].score;
             }
             newRoom.players.push({
               name: oldRoom.players[i].name,
               state: 0,
               wordList: [],
-              score: oldRoom.players[i].score,
+              score: score,
               socketID: oldRoom.players[i].socketID,
               guessed: false
             })
           }
+          gameState.rooms[roomIndex] = newRoom;
           sendUpdateRoom(session.roomID);
           log(session.playerName + " in room " + session.roomID + " Room Reset");
         } else {
