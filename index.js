@@ -75,9 +75,9 @@ const roomStates = {
 };
 var gameState = {
   server: {
-    version: "0.2.3",
+    version: "0.2.4",
     name: "testServer",
-    desc: "This is a test server"
+    desc: "Default server. From https://github.com/jabcom/FFAserver"
   },
   categorys: ["Songs", "Fruit", "Junk Food", "Book Titles", "Pets", "Jungle Animals", "Video Games",
   "Plants", "Seasonal Hoilidays", "Superstitions", "Countries", "Emotions", "Murder Weapons",
@@ -103,7 +103,7 @@ if (process.env.NAME != null) {
   gameState.server.name = process.env.NAME
 }
 if (process.env.DESC != null) {
-  gameState.server.DESC = process.env.DESC
+  gameState.server.desc = process.env.DESC
 }
 
 function log(message) {
