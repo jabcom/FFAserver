@@ -628,7 +628,6 @@ io.on('connection', socket => {
 
   //Guess Artist
   socket.on('guessArtist', dataString => {
-    //TODO check if player has already been guessed
     try{
       let data = dataString;
       let playerGuess = data.playerName;
@@ -678,6 +677,35 @@ io.on('connection', socket => {
       log("ERROR 012: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
       try {
         socket.emit('showError', {type: errorTypes.serverError, message: "ERROR 012: " + error.message});
+      } catch{}
+    }
+  });
+
+  //Guess Artist
+  socket.on('noMajority', dataString => {
+    try{
+      if (session.roomID != null){
+        let roomIndex = getRoomIndex(session.roomID);
+        if (gameState.rooms[roomIndex].state == roomStates.playingGame) {
+          if (session.playerName == gameState.rooms[getRoomIndex(session.roomID)].host) {
+            for(let i = 0; i < gameState.rooms[roomIndex].players.length; i++) {
+              if (gameState.rooms[roomIndex].players[i].name != gameState.rooms[roomIndex].artist) {
+                gameState.rooms[roomIndex].players[i].score += gameState.settings.scores.artistEvaded;
+              }
+            }
+          } else {
+            socket.emit('showError', {type: errorTypes.guessArtistNotHost, message: "User is not host"});
+          }
+        } else {
+          socket.emit('showError', {type: errorTypes.guessArtistWrongRoomState, message: "Room not in correct state"});
+        }
+      } else {
+        socket.emit('showError', {type: errorTypes.guessArtistNotInRoom, message: "Can't guess User is in a room"});
+      }
+    } catch(error) {
+      log("ERROR 012a: " + JSON.stringify(error, ["message", "arguments", "type", "name"]));
+      try {
+        socket.emit('showError', {type: errorTypes.serverError, message: "ERROR 012a: " + error.message});
       } catch{}
     }
   });
@@ -797,7 +825,7 @@ io.on('connection', socket => {
           }
 
           for (let i = 0; i < oldRoom.players.length; i++) {
-            let score: 0;
+            let score = 0;
             if (data.resetScores == true) {
               score = oldRoom.players[i].score;
             }
