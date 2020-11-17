@@ -779,6 +779,7 @@ io.on('connection', socket => {
 
   socket.on('newGame', dataString => {
     try{
+      let data = dataString;
       if (session.roomID != null){
         let roomIndex = getRoomIndex(session.roomID);
         if (gameState.rooms[roomIndex].host == session.playerName) {
@@ -794,7 +795,12 @@ io.on('connection', socket => {
             host: oldRoom.host,
             players: []
           }
+
           for (let i = 0; i < oldRoom.players.length; i++) {
+            let score: 0;
+            if (data.resetScores == true) {
+              score = oldRoom.players[i].score;
+            }
             newRoom.players.push({
               name: oldRoom.players[i].name,
               state: 0,
