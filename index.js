@@ -1,3 +1,4 @@
+const port = 8000
 var express = require('express')
 var app = express()
 var http = require('http')
@@ -864,4 +865,4 @@ io.on('connection', socket => {
   });
 
 });
-server.listen(3000);
+server.listen(port);
